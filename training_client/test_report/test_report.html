@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>单元测试报告</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { color: #333; margin-bottom: 20px; }
+        .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 30px; }
+        .card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .card h3 { color: #666; font-size: 14px; margin-bottom: 10px; }
+        .card .value { font-size: 32px; font-weight: bold; }
+        .card.pass .value { color: #52c41a; }
+        .card.fail .value { color: #ff4d4f; }
+        .card.error .value { color: #fa8c16; }
+        .card.total .value { color: #1890ff; }
+        .info { background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .info p { margin: 5px 0; color: #666; }
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #fafafa; font-weight: 600; color: #333; }
+        tr:hover { background: #f9f9f9; }
+        .status { padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 500; }
+        .status.PASS { background: #f6ffed; color: #52c41a; border: 1px solid #b7eb8f; }
+        .status.FAIL { background: #fff2f0; color: #ff4d4f; border: 1px solid #ffccc7; }
+        .status.ERROR { background: #fff7e6; color: #fa8c16; border: 1px solid #ffd591; }
+        .status.SKIP { background: #f0f5ff; color: #1890ff; border: 1px solid #adc6ff; }
+        .error-detail { background: #fff2f0; padding: 10px; border-radius: 4px; margin-top: 8px; font-family: monospace; font-size: 12px; white-space: pre-wrap; color: #5c0011; display: none; }
+        .toggle-btn { cursor: pointer; color: #1890ff; text-decoration: underline; font-size: 12px; }
+        .duration { color: #999; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 单元测试报告</h1>
+
+        <div class="summary">
+            <div class="card total"><h3>总计</h3><div class="value">32</div></div>
+            <div class="card pass"><h3>通过</h3><div class="value">32</div></div>
+            <div class="card fail"><h3>失败</h3><div class="value">0</div></div>
+            <div class="card error"><h3>错误</h3><div class="value">0</div></div>
+            <div class="card" style="pass"><h3>跳过</h3><div class="value">0</div></div>
+        </div>
+
+        <div class="info">
+            <p><strong>生成时间:</strong> 2026-03-23 10:32:35</p>
+            <p><strong>执行时长:</strong> 0.01 秒</p>
+            <p><strong>通过率:</strong> 100.0%</p>
+        </div>
+
+        <h2 style="margin-bottom: 15px; color: #333;">测试详情</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>测试名称</th>
+                    <th>状态</th>
+                    <th>耗时</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+
+                <tr>
+                    <td>test_init (test_training_client.TestInteractiveClient.test_init)</td>
+                    <td><span class="status PASS">PASS</span></td>
+                    <td class="duration">0.000s</td>
+                    <td>
+                        -
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>test_run_connect_failure (test_training_client.TestInteractiveClient.test_run_connect_failure)</td>
+                    <td><span class="status PASS">PASS</span></td>
+                    <td class="duration">0.000s</td>
+                    <td>
+                        -
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>test_calculate_checksum_basic (test_training_client.TestMessageProtocol.test_calculate_checksum_basic)</td>
+                    <td><span class="status PASS">PASS</span></td>
+                    <td class="duration">0.000s</td>
+                    <td>
+                        -
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>test_calculate_checksum_consistency (test_training_client.TestMessageProtocol.test_calculate_checksum_consistency)</td>
+                    <td><span class="status PASS">PASS</span></td>
+                    <td class="duration">0.000s</td>
+                    <td>
+                        -
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>test_calculate_checksum_empty (test_training_client.TestMessageProtocol.test_calculate_checksum_empty)</td>
+                    <td><span class="status PASS">PASS</span></td>
+                    <td class="duration">0.000s</td>
+                    <td>
+                        -
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>test_pack_and_unpack_roundtrip (test_training_client.TestMessageProtocol.test_pack_and_unpack_roundtrip)</td>
+                    <td><span class="status PASS">PASS</span></td>
+                    <td class="duration">0.000s</td>
+                    <td>
+                        -
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>test_pack_header (test_training_client.TestMessageProtocol.test_pack_header)</td>
+                    <td><span class="status PASS">PASS</span></td>
+                    <td class="duration">0.000s</td>
+                    <td>
+                        -
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>test_pack_length (test_training_client.TestMessageProtocol.test_pack_length)</td>
+                    <td><span class="status PASS">PASS</span></td>
+                    <td class="duration">0.000s</td>
+                    <td>
+                        -
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>test_pack_structure (test_training_client.TestMessageProtocol.test_pack_structure)</td>
+                    <td><span class="status PASS">PASS</span></td>
+                    <td class="duration">0.000s</td>
+                    <td>
+                        -
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>test_pack_unicode (test_training_client.TestMessageProtocol.test_pack_unicode)</td>
+                    <td><span class="status PASS">PASS</span></td>
+                    <td class="duration">0.000s</td>
+                    <td>
+                        -
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>test_checksum_overflow (test_training_client.TestMessageProtocolEdgeCases.test_checksum_overflow)</td>
+                    <td><span class="status PASS">PASS</span></td>
+                    <td class="duration">0.004s</td>
+                    <td>
+                        -
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>test_pack_empty_message (test_training_client.TestMessageProtocolEdgeCases.test_pack_empty_message)</td>
+                    <td><span class="status PASS">PASS</span></td>
+                    <td class="duration">0.000s</td>
+                    <td>
+                        -
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>test_pack_large_message (test_training_client.TestMessageProtocolEdgeCases.test_pack_large_message)</td>
+                    <td><span class="status PASS">PASS</span></td>
+                    <td class="duration">0.000s</td>
+                    <td>
+                        -
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>test_receive_invalid_header (test_training_client.TestMessageProtocolReceive.test_receive_invalid_header)</td>
+                    <td><span class="status PASS">PASS</span></td>
+                    <td class="duration">0.000s</td>
+                    <td>
+                        -
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>test_receive_normal (test_training_client.TestMessageProtocolReceive.test_receive_normal)</td>
+                    <td><span class="status PASS">PASS</span></td>
+                    <td class="duration">0.000s</td>
+                    <td>
+                        -
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>test_receive_timeout (test_training_client.TestMessageProtocolReceive.test_receive_timeout)</td>
+                    <td><span class="status PASS">PASS</span></td>
+                    <td class="duration">0.000s</td>
+                    <td>
+                        -
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>test_connect_failure (test_training_client.TestTrainingClient.test_connect_failure)</td>
+                    <td><span class="status PASS">PASS</span></td>
+                    <td class="duration">0.000s</td>
+                    <td>
+                        -
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>test_connect_success (test_training_client.TestTrainingClient.test_connect_success)</td>
+                    <td><span class="status PASS">PASS</span></td>
+                    <td class="duration">0.000s</td>
+                    <td>
+                        -
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>test_create_task_failure (test_training_client.TestTrainingClient.test_create_task_failure)</td>
+                    <td><span class="status PASS">PASS</span></td>
+                    <td class="duration">0.000s</td>
+                    <td>
+                        -
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>test_create_task_success (test_training_client.TestTrainingClient.test_create_task_success)</td>
+                    <td><span class="status PASS">PASS</span></td>
+                    <td class="duration">0.000s</td>
+                    <td>
+                        -
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>test_delete_task_success (test_training_client.TestTrainingClient.test_delete_task_success)</td>
+                    <td><span class="status PASS">PASS</span></td>
+                    <td class="duration">0.001s</td>
+                    <td>
+                        -
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>test_disconnect (test_training_client.TestTrainingClient.test_disconnect)</td>
+                    <td><span class="status PASS">PASS</span></td>
+                    <td class="duration">0.000s</td>
+                    <td>
+                        -
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>test_get_progress_success (test_training_client.TestTrainingClient.test_get_progress_success)</td>
+                    <td><span class="status PASS">PASS</span></td>
+                    <td class="duration">0.000s</td>
+                    <td>
+                        -
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>test_get_task_status_success (test_training_client.TestTrainingClient.test_get_task_status_success)</td>
+                    <td><span class="status PASS">PASS</span></td>
+                    <td class="duration">0.000s</td>
+                    <td>
+                        -
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>test_init (test_training_client.TestTrainingClient.test_init)</td>
+                    <td><span class="status PASS">PASS</span></td>
+                    <td class="duration">0.000s</td>
+                    <td>
+                        -
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>test_list_tasks_success (test_training_client.TestTrainingClient.test_list_tasks_success)</td>
+                    <td><span class="status PASS">PASS</span></td>
+                    <td class="duration">0.000s</td>
+                    <td>
+                        -
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>test_ping_failure (test_training_client.TestTrainingClient.test_ping_failure)</td>
+                    <td><span class="status PASS">PASS</span></td>
+                    <td class="duration">0.000s</td>
+                    <td>
+                        -
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>test_ping_success (test_training_client.TestTrainingClient.test_ping_success)</td>
+                    <td><span class="status PASS">PASS</span></td>
+                    <td class="duration">0.000s</td>
+                    <td>
+                        -
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>test_send_request_not_connected (test_training_client.TestTrainingClient.test_send_request_not_connected)</td>
+                    <td><span class="status PASS">PASS</span></td>
+                    <td class="duration">0.000s</td>
+                    <td>
+                        -
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>test_send_request_success (test_training_client.TestTrainingClient.test_send_request_success)</td>
+                    <td><span class="status PASS">PASS</span></td>
+                    <td class="duration">0.001s</td>
+                    <td>
+                        -
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>test_start_training_success (test_training_client.TestTrainingClient.test_start_training_success)</td>
+                    <td><span class="status PASS">PASS</span></td>
+                    <td class="duration">0.000s</td>
+                    <td>
+                        -
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>test_stop_training_success (test_training_client.TestTrainingClient.test_stop_training_success)</td>
+                    <td><span class="status PASS">PASS</span></td>
+                    <td class="duration">0.000s</td>
+                    <td>
+                        -
+                    </td>
+                </tr>
+
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        function toggleError(id) {
+            const el = document.getElementById(id);
+            el.style.display = el.style.display === 'none' || el.style.display === '' ? 'block' : 'none';
+        }
+    </script>
+</body>
+</html>

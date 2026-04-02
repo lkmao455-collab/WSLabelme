@@ -1,0 +1,19 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Labelme",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/labelme/__main__.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "python": "D:\\ProgramData\\anaconda3\\envs\\labelme\\python.exe",
+            "subProcess": false,
+            "debugAdapterHost": "localhost"
+        }
+    ]
+}

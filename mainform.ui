@@ -1,0 +1,1714 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1200</width>
+    <height>800</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>AI 图像标注与训练系统</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">QMainWindow {
+	background-color: #ffffff;
+}</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <property name="styleSheet">
+    <string notr="true"/>
+   </property>
+   <layout class="QVBoxLayout" name="verticalLayout_main" stretch="0,1">
+    <property name="spacing">
+     <number>0</number>
+    </property>
+    <property name="leftMargin">
+     <number>0</number>
+    </property>
+    <property name="topMargin">
+     <number>0</number>
+    </property>
+    <property name="rightMargin">
+     <number>0</number>
+    </property>
+    <property name="bottomMargin">
+     <number>0</number>
+    </property>
+    <!-- Banner 区域 -->
+    <item>
+     <widget class="QFrame" name="banner">
+      <property name="minimumSize">
+       <size>
+        <width>0</width>
+        <height>70</height>
+       </size>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>16777215</width>
+        <height>70</height>
+       </size>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">QFrame#banner {
+	background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
+		stop:0 #667eea, stop:1 #764ba2);
+}</string>
+      </property>
+      <property name="frameShape">
+       <enum>QFrame::StyledPanel</enum>
+      </property>
+      <property name="frameShadow">
+       <enum>QFrame::Raised</enum>
+      </property>
+      <layout class="QVBoxLayout" name="layout_banner" stretch="1,0">
+       <property name="spacing">
+        <number>0</number>
+       </property>
+       <property name="leftMargin">
+        <number>0</number>
+       </property>
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+       <property name="rightMargin">
+        <number>0</number>
+       </property>
+       <property name="bottomMargin">
+        <number>0</number>
+       </property>
+       <item>
+        <widget class="QFrame" name="frame_bannerTop">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>70</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>16777215</width>
+           <height>70</height>
+          </size>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">background: transparent;</string>
+         </property>
+         <property name="frameShape">
+          <enum>QFrame::NoFrame</enum>
+         </property>
+         <property name="frameShadow">
+          <enum>QFrame::Raised</enum>
+         </property>
+         <layout class="QHBoxLayout" name="layout_bannerTop">
+          <property name="spacing">
+           <number>0</number>
+          </property>
+          <property name="leftMargin">
+           <number>0</number>
+          </property>
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <property name="rightMargin">
+           <number>0</number>
+          </property>
+          <property name="bottomMargin">
+           <number>0</number>
+          </property>
+          <!-- 导航按钮组 -->
+          <item>
+           <widget class="QPushButton" name="btn_imageAnnotation">
+            <property name="minimumSize">
+             <size>
+              <width>64</width>
+              <height>70</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>64</width>
+              <height>70</height>
+             </size>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">QPushButton#btn_imageAnnotation {
+	background: transparent;
+	border: none;
+	border-bottom: 3px solid transparent;
+	color: white;
+	font-size: 11px;
+	font-weight: bold;
+}
+QPushButton#btn_imageAnnotation:hover {
+	background-color: rgba(255, 255, 255, 0.1);
+}
+QPushButton#btn_imageAnnotation:checked {
+	background-color: rgba(255, 255, 255, 0.2);
+	border-bottom: 3px solid white;
+}</string>
+            </property>
+            <property name="text">
+             <string>图像标注</string>
+            </property>
+            <property name="icon">
+             <iconset>
+              <normaloff>labelme/resources/image.svg</normaloff>labelme/resources/image.svg</iconset>
+            </property>
+            <property name="iconSize">
+             <size>
+              <width>36</width>
+              <height>36</height>
+             </size>
+            </property>
+            <property name="checkable">
+             <bool>true</bool>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btn_modelTraining">
+            <property name="minimumSize">
+             <size>
+              <width>64</width>
+              <height>70</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>64</width>
+              <height>70</height>
+             </size>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">QPushButton#btn_modelTraining {
+	background: transparent;
+	border: none;
+	border-bottom: 3px solid transparent;
+	color: white;
+	font-size: 11px;
+	font-weight: bold;
+}
+QPushButton#btn_modelTraining:hover {
+	background-color: rgba(255, 255, 255, 0.1);
+}
+QPushButton#btn_modelTraining:checked {
+	background-color: rgba(255, 255, 255, 0.2);
+	border-bottom: 3px solid white;
+}</string>
+            </property>
+            <property name="text">
+             <string>模型训练</string>
+            </property>
+            <property name="icon">
+             <iconset>
+              <normaloff>labelme/resources/play.svg</normaloff>labelme/resources/play.svg</iconset>
+            </property>
+            <property name="iconSize">
+             <size>
+              <width>36</width>
+              <height>36</height>
+             </size>
+            </property>
+            <property name="checkable">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btn_modelUsage">
+            <property name="minimumSize">
+             <size>
+              <width>64</width>
+              <height>70</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>64</width>
+              <height>70</height>
+             </size>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">QPushButton#btn_modelUsage {
+	background: transparent;
+	border: none;
+	border-bottom: 3px solid transparent;
+	color: white;
+	font-size: 11px;
+	font-weight: bold;
+}
+QPushButton#btn_modelUsage:hover {
+	background-color: rgba(255, 255, 255, 0.1);
+}
+QPushButton#btn_modelUsage:checked {
+	background-color: rgba(255, 255, 255, 0.2);
+	border-bottom: 3px solid white;
+}</string>
+            </property>
+            <property name="text">
+             <string>模型使用</string>
+            </property>
+            <property name="icon">
+             <iconset>
+              <normaloff>labelme/resources/download.svg</normaloff>labelme/resources/download.svg</iconset>
+            </property>
+            <property name="iconSize">
+             <size>
+              <width>36</width>
+              <height>36</height>
+             </size>
+            </property>
+            <property name="checkable">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btn_systemSettings">
+            <property name="minimumSize">
+             <size>
+              <width>64</width>
+              <height>70</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>64</width>
+              <height>70</height>
+             </size>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">QPushButton#btn_systemSettings {
+	background: transparent;
+	border: none;
+	border-bottom: 3px solid transparent;
+	color: white;
+	font-size: 11px;
+	font-weight: bold;
+}
+QPushButton#btn_systemSettings:hover {
+	background-color: rgba(255, 255, 255, 0.1);
+}
+QPushButton#btn_systemSettings:checked {
+	background-color: rgba(255, 255, 255, 0.2);
+	border-bottom: 3px solid white;
+}</string>
+            </property>
+            <property name="text">
+             <string>系统设置</string>
+            </property>
+            <property name="icon">
+             <iconset>
+              <normaloff>labelme/resources/settings.svg</normaloff>labelme/resources/settings.svg</iconset>
+            </property>
+            <property name="iconSize">
+             <size>
+              <width>36</width>
+              <height>36</height>
+             </size>
+            </property>
+            <property name="checkable">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <!-- 弹性空间 -->
+          <item>
+           <spacer name="horizontalSpacer_banner">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <!-- Logo 区域 -->
+          <item>
+           <widget class="QLabel" name="label_logo">
+            <property name="minimumSize">
+             <size>
+              <width>465</width>
+              <height>70</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>465</width>
+              <height>70</height>
+             </size>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">background: rgba(255, 255, 255, 0.1);</string>
+            </property>
+            <property name="text">
+             <string/>
+            </property>
+            <property name="pixmap">
+             <pixmap>labelme/resources/logo.png</pixmap>
+            </property>
+            <property name="scaledContents">
+             <bool>false</bool>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignCenter</set>
+            </property>
+           </widget>
+          </item>
+          <!-- 窗口控制按钮 -->
+          <item>
+           <widget class="QWidget" name="widget_windowControls" native="true">
+            <layout class="QHBoxLayout" name="layout_windowControls">
+             <property name="spacing">
+              <number>0</number>
+             </property>
+             <property name="leftMargin">
+              <number>0</number>
+             </property>
+             <property name="topMargin">
+              <number>0</number>
+             </property>
+             <property name="rightMargin">
+              <number>10</number>
+             </property>
+             <property name="bottomMargin">
+              <number>0</number>
+             </property>
+             <item>
+              <widget class="QPushButton" name="btn_minimize">
+               <property name="minimumSize">
+                <size>
+                 <width>46</width>
+                 <height>70</height>
+                </size>
+               </property>
+               <property name="maximumSize">
+                <size>
+                 <width>46</width>
+                 <height>70</height>
+                </size>
+               </property>
+               <property name="styleSheet">
+                <string notr="true">QPushButton#btn_minimize {
+	background: transparent;
+	border: none;
+	color: white;
+	font-size: 20px;
+}
+QPushButton#btn_minimize:hover {
+	background-color: rgba(255, 255, 255, 0.2);
+}</string>
+               </property>
+               <property name="text">
+                <string>─</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="btn_maximize">
+               <property name="minimumSize">
+                <size>
+                 <width>46</width>
+                 <height>70</height>
+                </size>
+               </property>
+               <property name="maximumSize">
+                <size>
+                 <width>46</width>
+                 <height>70</height>
+                </size>
+               </property>
+               <property name="styleSheet">
+                <string notr="true">QPushButton#btn_maximize {
+	background: transparent;
+	border: none;
+	color: white;
+	font-size: 18px;
+}
+QPushButton#btn_maximize:hover {
+	background-color: rgba(255, 255, 255, 0.2);
+}</string>
+               </property>
+               <property name="text">
+                <string>□</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="btn_close">
+               <property name="minimumSize">
+                <size>
+                 <width>46</width>
+                 <height>70</height>
+                </size>
+               </property>
+               <property name="maximumSize">
+                <size>
+                 <width>46</width>
+                 <height>70</height>
+                </size>
+               </property>
+               <property name="styleSheet">
+                <string notr="true">QPushButton#btn_close {
+	background: transparent;
+	border: none;
+	color: white;
+	font-size: 20px;
+}
+QPushButton#btn_close:hover {
+	background-color: #e81123;
+}</string>
+               </property>
+               <property name="text">
+                <string>×</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <!-- Banner 底部指示条 -->
+       <item>
+        <widget class="QLabel" name="label_bannerIndicator">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>4</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>16777215</width>
+           <height>4</height>
+          </size>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">background-color: rgba(255, 255, 255, 0.3);</string>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <!-- 主内容区域 -->
+    <item>
+     <widget class="QFrame" name="frame_contents">
+      <property name="styleSheet">
+       <string notr="true">background: transparent;</string>
+      </property>
+      <property name="frameShape">
+       <enum>QFrame::NoFrame</enum>
+      </property>
+      <property name="frameShadow">
+       <enum>QFrame::Raised</enum>
+      </property>
+      <layout class="QHBoxLayout" name="layout_contents">
+       <property name="spacing">
+        <number>0</number>
+       </property>
+       <property name="leftMargin">
+        <number>0</number>
+       </property>
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+       <property name="rightMargin">
+        <number>0</number>
+       </property>
+       <property name="bottomMargin">
+        <number>0</number>
+       </property>
+       <!-- 左侧全局工具栏 -->
+       <item>
+        <widget class="QFrame" name="frame_leftToolbar">
+         <property name="minimumSize">
+          <size>
+           <width>64</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>64</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">QFrame#frame_leftToolbar {
+	background-color: #f8f8f8;
+	border-right: 1px solid #e0e0e0;
+}</string>
+         </property>
+         <layout class="QVBoxLayout" name="layout_leftToolbar">
+          <property name="spacing">
+           <number>8</number>
+          </property>
+          <property name="leftMargin">
+           <number>6</number>
+          </property>
+          <property name="topMargin">
+           <number>10</number>
+          </property>
+          <property name="rightMargin">
+           <number>6</number>
+          </property>
+          <property name="bottomMargin">
+           <number>10</number>
+          </property>
+          <item>
+           <widget class="QPushButton" name="btn_toolEdit">
+            <property name="minimumSize">
+             <size>
+              <width>52</width>
+              <height>52</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>52</width>
+              <height>52</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>编辑模式</string>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">QPushButton#btn_toolEdit {
+	background-color: #ffffff;
+	border: 2px solid #cccccc;
+	border-radius: 8px;
+}
+QPushButton#btn_toolEdit:hover {
+	background-color: #f0f0f0;
+	border-color: #999999;
+}
+QPushButton#btn_toolEdit:checked {
+	background-color: #667eea;
+	border-color: #667eea;
+}</string>
+            </property>
+            <property name="text">
+             <string/>
+            </property>
+            <property name="icon">
+             <iconset>
+              <normaloff>labelme/resources/edit.svg</normaloff>labelme/resources/edit.svg</iconset>
+            </property>
+            <property name="iconSize">
+             <size>
+              <width>28</width>
+              <height>28</height>
+             </size>
+            </property>
+            <property name="checkable">
+             <bool>true</bool>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btn_toolRectangle">
+            <property name="minimumSize">
+             <size>
+              <width>52</width>
+              <height>52</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>52</width>
+              <height>52</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>矩形标注</string>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">QPushButton#btn_toolRectangle {
+	background-color: #ffffff;
+	border: 2px solid #cccccc;
+	border-radius: 8px;
+}
+QPushButton#btn_toolRectangle:hover {
+	background-color: #f0f0f0;
+	border-color: #999999;
+}
+QPushButton#btn_toolRectangle:checked {
+	background-color: #667eea;
+	border-color: #667eea;
+}</string>
+            </property>
+            <property name="text">
+             <string/>
+            </property>
+            <property name="icon">
+             <iconset>
+              <normaloff>labelme/resources/rectangle.svg</normaloff>labelme/resources/rectangle.svg</iconset>
+            </property>
+            <property name="iconSize">
+             <size>
+              <width>28</width>
+              <height>28</height>
+             </size>
+            </property>
+            <property name="checkable">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btn_toolPolygon">
+            <property name="minimumSize">
+             <size>
+              <width>52</width>
+              <height>52</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>52</width>
+              <height>52</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>多边形标注</string>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">QPushButton#btn_toolPolygon {
+	background-color: #ffffff;
+	border: 2px solid #cccccc;
+	border-radius: 8px;
+}
+QPushButton#btn_toolPolygon:hover {
+	background-color: #f0f0f0;
+	border-color: #999999;
+}
+QPushButton#btn_toolPolygon:checked {
+	background-color: #667eea;
+	border-color: #667eea;
+}</string>
+            </property>
+            <property name="text">
+             <string/>
+            </property>
+            <property name="icon">
+             <iconset>
+              <normaloff>labelme/resources/polygon.svg</normaloff>labelme/resources/polygon.svg</iconset>
+            </property>
+            <property name="iconSize">
+             <size>
+              <width>28</width>
+              <height>28</height>
+             </size>
+            </property>
+            <property name="checkable">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btn_toolDelete">
+            <property name="minimumSize">
+             <size>
+              <width>52</width>
+              <height>52</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>52</width>
+              <height>52</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>清除单个</string>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">QPushButton#btn_toolDelete {
+	background-color: #ffffff;
+	border: 2px solid #cccccc;
+	border-radius: 8px;
+}
+QPushButton#btn_toolDelete:hover {
+	background-color: #f0f0f0;
+	border-color: #999999;
+}</string>
+            </property>
+            <property name="text">
+             <string/>
+            </property>
+            <property name="icon">
+             <iconset>
+              <normaloff>labelme/resources/delete.svg</normaloff>labelme/resources/delete.svg</iconset>
+            </property>
+            <property name="iconSize">
+             <size>
+              <width>28</width>
+              <height>28</height>
+             </size>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btn_toolUndo">
+            <property name="minimumSize">
+             <size>
+              <width>52</width>
+              <height>52</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>52</width>
+              <height>52</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>撤销 (Ctrl+Z)</string>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">QPushButton#btn_toolUndo {
+	background-color: #ffffff;
+	border: 2px solid #cccccc;
+	border-radius: 8px;
+}
+QPushButton#btn_toolUndo:hover {
+	background-color: #f0f0f0;
+	border-color: #999999;
+}</string>
+            </property>
+            <property name="text">
+             <string/>
+            </property>
+            <property name="icon">
+             <iconset>
+              <normaloff>labelme/resources/undo.svg</normaloff>labelme/resources/undo.svg</iconset>
+            </property>
+            <property name="iconSize">
+             <size>
+              <width>28</width>
+              <height>28</height>
+             </size>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btn_toolRedo">
+            <property name="minimumSize">
+             <size>
+              <width>52</width>
+              <height>52</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>52</width>
+              <height>52</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>重做 (Ctrl+Y)</string>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">QPushButton#btn_toolRedo {
+	background-color: #ffffff;
+	border: 2px solid #cccccc;
+	border-radius: 8px;
+}
+QPushButton#btn_toolRedo:hover {
+	background-color: #f0f0f0;
+	border-color: #999999;
+}</string>
+            </property>
+            <property name="text">
+             <string/>
+            </property>
+            <property name="icon">
+             <iconset>
+              <normaloff>labelme/resources/redo.svg</normaloff>labelme/resources/redo.svg</iconset>
+            </property>
+            <property name="iconSize">
+             <size>
+              <width>28</width>
+              <height>28</height>
+             </size>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="verticalSpacer_leftToolbar">
+            <property name="orientation">
+             <enum>Qt::Vertical</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>20</width>
+              <height>40</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <!-- 中央 QStackedWidget -->
+       <item>
+        <widget class="QStackedWidget" name="stackedWidget_content">
+         <property name="styleSheet">
+          <string notr="true">background: transparent;</string>
+         </property>
+         <property name="currentIndex">
+          <number>0</number>
+         </property>
+         <!-- 图像标注页面 -->
+         <widget class="QWidget" name="page_imageAnnotation">
+          <layout class="QHBoxLayout" name="layout_annotation">
+           <property name="spacing">
+            <number>5</number>
+           </property>
+           <property name="leftMargin">
+            <number>0</number>
+           </property>
+           <property name="topMargin">
+            <number>0</number>
+           </property>
+           <property name="rightMargin">
+            <number>0</number>
+           </property>
+           <property name="bottomMargin">
+            <number>0</number>
+           </property>
+           <!-- 标注工具栏（页面内） -->
+           <item>
+            <widget class="QFrame" name="frame_annotationTools">
+             <property name="minimumSize">
+              <size>
+               <width>80</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>80</width>
+               <height>16777215</height>
+              </size>
+             </property>
+             <property name="styleSheet">
+              <string notr="true">QFrame#frame_annotationTools {
+	background-color: #f8f8f8;
+	border-right: 1px solid #cccccc;
+}</string>
+             </property>
+             <layout class="QVBoxLayout" name="layout_annotationTools">
+              <property name="spacing">
+               <number>10</number>
+              </property>
+              <property name="leftMargin">
+               <number>10</number>
+              </property>
+              <property name="topMargin">
+               <number>10</number>
+              </property>
+              <property name="rightMargin">
+               <number>10</number>
+              </property>
+              <property name="bottomMargin">
+               <number>10</number>
+              </property>
+              <item>
+               <widget class="QPushButton" name="btn_editMode">
+                <property name="minimumSize">
+                 <size>
+                  <width>60</width>
+                  <height>60</height>
+                 </size>
+                </property>
+                <property name="toolTip">
+                 <string>编辑模式 - F1</string>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">QPushButton#btn_editMode {
+	background-color: #ffffff;
+	border: 2px solid #cccccc;
+	border-radius: 5px;
+	font-size: 12px;
+	font-weight: bold;
+}
+QPushButton#btn_editMode:checked {
+	background-color: #ffcccc;
+	border-color: #ff6666;
+}</string>
+                </property>
+                <property name="text">
+                 <string>F1</string>
+                </property>
+                <property name="checkable">
+                 <bool>true</bool>
+                </property>
+                <property name="checked">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="btn_rectangleMode">
+                <property name="minimumSize">
+                 <size>
+                  <width>60</width>
+                  <height>60</height>
+                 </size>
+                </property>
+                <property name="toolTip">
+                 <string>矩形标注 - F2</string>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">QPushButton#btn_rectangleMode {
+	background-color: #ffffff;
+	border: 2px solid #cccccc;
+	border-radius: 5px;
+	font-size: 12px;
+	font-weight: bold;
+}
+QPushButton#btn_rectangleMode:checked {
+	background-color: #ffcccc;
+	border-color: #ff6666;
+}</string>
+                </property>
+                <property name="text">
+                 <string>F2</string>
+                </property>
+                <property name="checkable">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="btn_polygonMode">
+                <property name="minimumSize">
+                 <size>
+                  <width>60</width>
+                  <height>60</height>
+                 </size>
+                </property>
+                <property name="toolTip">
+                 <string>多边形标注 - F3</string>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">QPushButton#btn_polygonMode {
+	background-color: #ffffff;
+	border: 2px solid #cccccc;
+	border-radius: 5px;
+	font-size: 12px;
+	font-weight: bold;
+}
+QPushButton#btn_polygonMode:checked {
+	background-color: #ffcccc;
+	border-color: #ff6666;
+}</string>
+                </property>
+                <property name="text">
+                 <string>F3</string>
+                </property>
+                <property name="checkable">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="btn_deleteSingle">
+                <property name="minimumSize">
+                 <size>
+                  <width>60</width>
+                  <height>60</height>
+                 </size>
+                </property>
+                <property name="toolTip">
+                 <string>清除单个 - F4</string>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">QPushButton#btn_deleteSingle {
+	background-color: #ffffff;
+	border: 2px solid #cccccc;
+	border-radius: 5px;
+	font-size: 12px;
+	font-weight: bold;
+}
+QPushButton#btn_deleteSingle:hover {
+	background-color: #ffe6e6;
+}</string>
+                </property>
+                <property name="text">
+                 <string>F4</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="btn_undo">
+                <property name="minimumSize">
+                 <size>
+                  <width>60</width>
+                  <height>60</height>
+                 </size>
+                </property>
+                <property name="toolTip">
+                 <string>撤销 - Ctrl+Z</string>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">QPushButton#btn_undo {
+	background-color: #ffffff;
+	border: 2px solid #cccccc;
+	border-radius: 5px;
+	font-size: 10px;
+	font-weight: bold;
+}
+QPushButton#btn_undo:hover {
+	background-color: #ffe6e6;
+}</string>
+                </property>
+                <property name="text">
+                 <string>Ctrl+Z</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="btn_redo">
+                <property name="minimumSize">
+                 <size>
+                  <width>60</width>
+                  <height>60</height>
+                 </size>
+                </property>
+                <property name="toolTip">
+                 <string>重做 - Ctrl+Y</string>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">QPushButton#btn_redo {
+	background-color: #ffffff;
+	border: 2px solid #cccccc;
+	border-radius: 5px;
+	font-size: 10px;
+	font-weight: bold;
+}
+QPushButton#btn_redo:hover {
+	background-color: #ffe6e6;
+}</string>
+                </property>
+                <property name="text">
+                 <string>Ctrl+Y</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="verticalSpacer_annotationTools">
+                <property name="orientation">
+                 <enum>Qt::Vertical</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>20</width>
+                  <height>40</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <!-- 画布区域 -->
+           <item>
+            <widget class="QFrame" name="frame_canvasContainer">
+             <property name="styleSheet">
+              <string notr="true">background-color: #ffffff;</string>
+             </property>
+             <layout class="QVBoxLayout" name="layout_canvas">
+              <property name="spacing">
+               <number>0</number>
+              </property>
+              <property name="leftMargin">
+               <number>0</number>
+              </property>
+              <property name="topMargin">
+               <number>0</number>
+              </property>
+              <property name="rightMargin">
+               <number>0</number>
+              </property>
+              <property name="bottomMargin">
+               <number>0</number>
+              </property>
+              <item>
+               <widget class="QLabel" name="label_canvasPlaceholder">
+                <property name="text">
+                 <string>图像标注画布区域</string>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">QLabel#label_canvasPlaceholder {
+	font-size: 16px;
+	color: #999999;
+}</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <!-- 右侧面板 -->
+           <item>
+            <widget class="QSplitter" name="splitter_rightPanel">
+             <property name="orientation">
+              <enum>Qt::Vertical</enum>
+             </property>
+             <property name="handleWidth">
+              <number>5</number>
+             </property>
+             <!-- 标签区域 -->
+             <widget class="QFrame" name="frame_labels">
+              <property name="minimumSize">
+               <size>
+                <width>200</width>
+                <height>200</height>
+               </size>
+              </property>
+              <property name="styleSheet">
+               <string notr="true">QFrame#frame_labels {
+	background-color: #f8f8f8;
+	border-left: 1px solid #cccccc;
+}</string>
+              </property>
+              <layout class="QVBoxLayout" name="layout_labels">
+               <property name="spacing">
+                <number>5</number>
+               </property>
+               <property name="leftMargin">
+                <number>10</number>
+               </property>
+               <property name="topMargin">
+                <number>10</number>
+               </property>
+               <property name="rightMargin">
+                <number>10</number>
+               </property>
+               <property name="bottomMargin">
+                <number>10</number>
+               </property>
+               <item>
+                <widget class="QLabel" name="label_labelsTitle">
+                 <property name="text">
+                  <string>标签管理</string>
+                 </property>
+                 <property name="font">
+                  <font>
+                   <pointsize>12</pointsize>
+                   <weight>75</weight>
+                   <bold>true</bold>
+                  </font>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="btn_addLabel">
+                 <property name="text">
+                  <string>添加新标签</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QListWidget" name="listWidget_labels">
+                 <property name="styleSheet">
+                  <string notr="true">QListWidget#listWidget_labels {
+	background-color: white;
+	border: 1px solid #cccccc;
+}</string>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </widget>
+             <!-- 文件列表区域 -->
+             <widget class="QFrame" name="frame_fileList">
+              <property name="minimumSize">
+               <size>
+                <width>200</width>
+                <height>200</height>
+               </size>
+              </property>
+              <property name="styleSheet">
+               <string notr="true">QFrame#frame_fileList {
+	background-color: #f8f8f8;
+	border-left: 1px solid #cccccc;
+	border-top: 1px solid #cccccc;
+}</string>
+              </property>
+              <layout class="QVBoxLayout" name="layout_fileList">
+               <property name="spacing">
+                <number>5</number>
+               </property>
+               <property name="leftMargin">
+                <number>10</number>
+               </property>
+               <property name="topMargin">
+                <number>10</number>
+               </property>
+               <property name="rightMargin">
+                <number>10</number>
+               </property>
+               <property name="bottomMargin">
+                <number>10</number>
+               </property>
+               <item>
+                <widget class="QLabel" name="label_filesTitle">
+                 <property name="text">
+                  <string>图片文件</string>
+                 </property>
+                 <property name="font">
+                  <font>
+                   <pointsize>12</pointsize>
+                   <weight>75</weight>
+                   <bold>true</bold>
+                  </font>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="btn_importImages">
+                 <property name="text">
+                  <string>导入图片文件夹</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="btn_connectCamera">
+                 <property name="text">
+                  <string>连接相机实时采图</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QListWidget" name="listWidget_files">
+                 <property name="styleSheet">
+                  <string notr="true">QListWidget#listWidget_files {
+	background-color: white;
+	border: 1px solid #cccccc;
+}</string>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </widget>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+         <!-- 模型训练页面 -->
+         <widget class="QWidget" name="page_modelTraining">
+          <layout class="QVBoxLayout" name="layout_training">
+           <property name="spacing">
+            <number>10</number>
+           </property>
+           <property name="leftMargin">
+            <number>20</number>
+           </property>
+           <property name="topMargin">
+            <number>20</number>
+           </property>
+           <property name="rightMargin">
+            <number>20</number>
+           </property>
+           <property name="bottomMargin">
+            <number>20</number>
+           </property>
+           <item>
+            <widget class="QLabel" name="label_trainingTitle">
+             <property name="text">
+              <string>模型训练</string>
+             </property>
+             <property name="font">
+              <font>
+               <pointsize>16</pointsize>
+               <weight>75</weight>
+               <bold>true</bold>
+              </font>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QFrame" name="frame_trainingControls">
+             <property name="styleSheet">
+              <string notr="true">QFrame#frame_trainingControls {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 5px;
+}</string>
+             </property>
+             <layout class="QHBoxLayout" name="layout_trainingControls">
+              <property name="spacing">
+               <number>20</number>
+              </property>
+              <property name="leftMargin">
+               <number>20</number>
+              </property>
+              <property name="topMargin">
+               <number>20</number>
+              </property>
+              <property name="rightMargin">
+               <number>20</number>
+              </property>
+              <property name="bottomMargin">
+               <number>20</number>
+              </property>
+              <item>
+               <widget class="QPushButton" name="btn_trainRun">
+                <property name="minimumSize">
+                 <size>
+                  <width>100</width>
+                  <height>100</height>
+                 </size>
+                </property>
+                <property name="text">
+                 <string>运行</string>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">QPushButton#btn_trainRun {
+	background-color: #e0e0e0;
+	border: 2px solid #cccccc;
+	border-radius: 10px;
+	font-size: 16px;
+	font-weight: bold;
+}
+QPushButton#btn_trainRun:checked {
+	background-color: #ffcccc;
+	border-color: #ff6666;
+}</string>
+                </property>
+                <property name="checkable">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="btn_trainStop">
+                <property name="minimumSize">
+                 <size>
+                  <width>100</width>
+                  <height>100</height>
+                 </size>
+                </property>
+                <property name="text">
+                 <string>停止</string>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">QPushButton#btn_trainStop {
+	background-color: #e0e0e0;
+	border: 2px solid #cccccc;
+	border-radius: 10px;
+	font-size: 16px;
+	font-weight: bold;
+}
+QPushButton#btn_trainStop:checked {
+	background-color: #ffcccc;
+	border-color: #ff6666;
+}</string>
+                </property>
+                <property name="checkable">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <widget class="QTextEdit" name="textEdit_trainingLog">
+             <property name="placeholderText">
+              <string>训练日志将显示在这里...</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+         <!-- 模型使用页面 -->
+         <widget class="QWidget" name="page_modelUsage">
+          <layout class="QVBoxLayout" name="layout_usage">
+           <property name="spacing">
+            <number>10</number>
+           </property>
+           <property name="leftMargin">
+            <number>20</number>
+           </property>
+           <property name="topMargin">
+            <number>20</number>
+           </property>
+           <property name="rightMargin">
+            <number>20</number>
+           </property>
+           <property name="bottomMargin">
+            <number>20</number>
+           </property>
+           <item>
+            <widget class="QLabel" name="label_usageTitle">
+             <property name="text">
+              <string>模型使用</string>
+             </property>
+             <property name="font">
+              <font>
+               <pointsize>16</pointsize>
+               <weight>75</weight>
+               <bold>true</bold>
+              </font>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QFrame" name="frame_usageControls">
+             <property name="styleSheet">
+              <string notr="true">QFrame#frame_usageControls {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 5px;
+}</string>
+             </property>
+             <layout class="QVBoxLayout" name="layout_usageControls">
+              <property name="spacing">
+               <number>15</number>
+              </property>
+              <property name="leftMargin">
+               <number>20</number>
+              </property>
+              <property name="topMargin">
+               <number>20</number>
+              </property>
+              <property name="rightMargin">
+               <number>20</number>
+              </property>
+              <property name="bottomMargin">
+               <number>20</number>
+              </property>
+              <item>
+               <widget class="QPushButton" name="btn_downloadToCamera">
+                <property name="text">
+                 <string>下载模型到智能相机</string>
+                </property>
+                <property name="minimumSize">
+                 <size>
+                  <width>0</width>
+                  <height>50</height>
+                 </size>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="btn_downloadToLocal">
+                <property name="text">
+                 <string>下载模型到本地电脑</string>
+                </property>
+                <property name="minimumSize">
+                 <size>
+                  <width>0</width>
+                  <height>50</height>
+                 </size>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="label_modelInfo">
+                <property name="text">
+                 <string>当前模型信息：</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QTextEdit" name="textEdit_modelInfo">
+                <property name="readOnly">
+                 <bool>true</bool>
+                </property>
+                <property name="placeholderText">
+                 <string>模型信息将显示在这里...</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+         <!-- 系统设置页面 -->
+         <widget class="QWidget" name="page_systemSettings">
+          <layout class="QVBoxLayout" name="layout_settings">
+           <property name="spacing">
+            <number>10</number>
+           </property>
+           <property name="leftMargin">
+            <number>20</number>
+           </property>
+           <property name="topMargin">
+            <number>20</number>
+           </property>
+           <property name="rightMargin">
+            <number>20</number>
+           </property>
+           <property name="bottomMargin">
+            <number>20</number>
+           </property>
+           <item>
+            <widget class="QLabel" name="label_settingsTitle">
+             <property name="text">
+              <string>系统设置</string>
+             </property>
+             <property name="font">
+              <font>
+               <pointsize>16</pointsize>
+               <weight>75</weight>
+               <bold>true</bold>
+              </font>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QTabWidget" name="tabWidget_settings">
+             <property name="currentIndex">
+              <number>0</number>
+             </property>
+             <widget class="QWidget" name="tab_general">
+              <attribute name="title">
+               <string>通用设置</string>
+              </attribute>
+              <layout class="QVBoxLayout" name="layout_general">
+               <item>
+                <widget class="QCheckBox" name="checkBox_autoSave">
+                 <property name="text">
+                  <string>自动保存</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QCheckBox" name="checkBox_showLabelPopup">
+                 <property name="text">
+                  <string>显示标签弹窗</string>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </widget>
+             <widget class="QWidget" name="tab_shortcuts">
+              <attribute name="title">
+               <string>快捷键设置</string>
+              </attribute>
+              <layout class="QVBoxLayout" name="layout_shortcuts">
+               <item>
+                <widget class="QLabel" name="label_shortcutsInfo">
+                 <property name="text">
+                  <string>快捷键配置将在后续版本中实现</string>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </widget>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <action name="actionOpen"/>
+  <action name="actionSave"/>
+  <action name="actionExit"/>
+ </widget>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>btn_imageAnnotation</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>stackedWidget_content</receiver>
+   <slot>setCurrentIndex(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>100</x>
+     <y>30</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>600</x>
+     <y>400</y>
+    </hint>
+   </hints>
+   <slot>0</slot>
+  </connection>
+  <connection>
+   <sender>btn_modelTraining</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>stackedWidget_content</receiver>
+   <slot>setCurrentIndex(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>250</x>
+     <y>30</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>600</x>
+     <y>400</y>
+    </hint>
+   </hints>
+   <slot>1</slot>
+  </connection>
+  <connection>
+   <sender>btn_modelUsage</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>stackedWidget_content</receiver>
+   <slot>setCurrentIndex(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>400</x>
+     <y>30</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>600</x>
+     <y>400</y>
+    </hint>
+   </hints>
+   <slot>2</slot>
+  </connection>
+  <connection>
+   <sender>btn_systemSettings</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>stackedWidget_content</receiver>
+   <slot>setCurrentIndex(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>550</x>
+     <y>30</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>600</x>
+     <y>400</y>
+    </hint>
+   </hints>
+   <slot>3</slot>
+  </connection>
+ </connections>
+</ui>

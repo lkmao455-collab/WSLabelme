@@ -1,0 +1,146 @@
+# Labelme 默认配置文件
+# 本文件定义了Labelme应用程序的所有默认配置选项
+
+# 基本功能配置
+auto_save: false                    # 自动保存功能
+display_label_popup: true           # 显示标签弹窗
+store_data: true                    # 存储数据
+keep_prev: false                    # 保持上一个文件的状态
+keep_prev_scale: false              # 保持上一个文件的缩放比例
+keep_prev_brightness: false         # 保持上一个文件的亮度
+keep_prev_contrast: false           # 保持上一个文件的对比度
+logger_level: info                  # 日志级别
+
+# 标签和标志配置
+flags: null                         # 全局标志配置
+label_flags: null                   # 标签标志配置
+labels: null                        # 预定义标签列表
+file_search: null                   # 文件搜索配置
+sort_labels: true                   # 是否对标签进行排序
+validate_label: null                # 标签验证模式
+
+# 颜色配置
+default_shape_color: [0, 255, 0]    # 默认形状颜色 (绿色)
+shape_color: auto                   # 形状颜色模式: null, 'auto', 'manual'
+shift_auto_shape_color: 0           # 自动形状颜色偏移
+label_colors: null                  # 标签颜色配置
+
+# 形状样式配置
+shape:
+  # 绘制时的颜色
+  line_color: [0, 255, 0, 128]      # 线条颜色 (绿色，半透明)
+  fill_color: [0, 0, 0, 64]         # 填充颜色 (黑色，半透明)
+  vertex_fill_color: [0, 255, 0, 255]  # 顶点填充颜色 (绿色，不透明)
+  
+  # 选择/悬停时的颜色
+  select_line_color: [255, 255, 255, 255]  # 选择线条颜色 (白色，不透明)
+  select_fill_color: [0, 255, 0, 64]       # 选择填充颜色 (绿色，半透明)
+  hvertex_fill_color: [255, 255, 255, 255] # 悬停顶点颜色 (白色，不透明)
+  point_size: 8                     # 点的大小
+
+# AI功能配置
+ai:
+  default: 'Sam2 (balanced)'        # 默认AI模型
+
+# 主界面停靠窗口配置
+# main
+flag_dock:                          # 标志停靠窗口
+  show: true                        # 是否显示
+  closable: false                   # 是否可关闭
+  movable: true                     # 是否可移动
+  floatable: true                   # 是否可浮动
+
+label_dock:                         # 标签停靠窗口
+  show: true
+  closable: false
+  movable: true
+  floatable: true
+
+shape_dock:                         # 形状停靠窗口
+  show: true
+  closable: false
+  movable: true
+  floatable: true
+
+file_dock:                          # 文件停靠窗口
+  show: true
+  closable: false
+  movable: true
+  floatable: true
+
+# 标签对话框配置
+# label_dialog
+show_label_text_field: true         # 显示标签文本字段
+label_completion: startswith        # 标签自动完成模式
+fit_to_content:                     # 内容适配
+  column: true                      # 列适配
+  row: false                        # 行适配
+
+# 画布配置
+# canvas
+epsilon: 10.0                       # 选择精度
+canvas:
+  fill_drawing: true                # 填充绘制
+  # None: do nothing                # 无操作
+  # close: close polygon            # 关闭多边形
+  double_click: close               # 双击操作
+  # The max number of edits we can undo  # 最大撤销次数
+  num_backups: 10                   # 备份数量
+  # show crosshair                  # 显示十字准星
+  crosshair:                        # 十字准星配置
+    polygon: false                  # 多边形模式
+    rectangle: true                 # 矩形模式
+    circle: false                   # 圆形模式
+    line: false                     # 直线模式
+    point: false                    # 点模式
+    linestrip: false                # 折线模式
+    ai_polygon: false               # AI多边形模式
+    ai_mask: false                  # AI掩码模式
+
+# 快捷键配置
+shortcuts:
+  # 文件操作
+  close: Ctrl+W                     # 关闭
+  open: Ctrl+O                      # 打开
+  open_dir: Ctrl+U                  # 打开目录
+  quit: Ctrl+Q                      # 退出
+  save: Ctrl+S                      # 保存
+  save_as: Ctrl+Shift+S             # 另存为
+  save_to: null                     # 保存到
+  delete_file: Ctrl+Delete          # 删除文件
+
+  # 导航
+  open_next: [D, Ctrl+Shift+D]      # 打开下一个
+  open_prev: [A, Ctrl+Shift+A]      # 打开上一个
+
+  # 缩放
+  zoom_in: [Ctrl++, Ctrl+=, WheelUp] # 放大 (支持鼠标滚轮)
+  zoom_out: [Ctrl+-, WheelDown]      # 缩小 (支持鼠标滚轮)
+  zoom_to_original: F                # 原始大小 - 使用F键
+  fit_window: Ctrl+F                # 适应窗口
+  fit_width: Ctrl+Shift+F           # 适应宽度
+
+  # 绘图工具 - 根据AI软件UI设计文档调整
+  create_polygon: F3                # 创建多边形 - F3
+  create_rectangle: F2              # 创建矩形 - F2
+  create_circle: null               # 创建圆形
+  create_line: null                 # 创建直线
+  create_point: null                # 创建点
+  create_linestrip: null            # 创建折线
+  edit_polygon: F1                  # 编辑多边形 - F1
+  delete_polygon: F4                # 删除多边形 - F4 (清除单个)
+  duplicate_polygon: Ctrl+D         # 复制多边形
+  copy_polygon: Ctrl+C              # 复制多边形
+  paste_polygon: Ctrl+V             # 粘贴多边形
+  undo: Ctrl+Z                      # 撤销 - Ctrl+Z
+  redo: Ctrl+Y                      # 重做 - Ctrl+Y (新增)
+  undo_last_point: Ctrl+Z           # 撤销最后一点
+  add_point_to_edge: Ctrl+Shift+P   # 在边上添加点
+  edit_label: Ctrl+E                # 编辑标签
+  toggle_keep_prev_mode: Ctrl+P     # 切换保持上一个模式
+  remove_selected_point: [Meta+H, Backspace]  # 删除选定点
+
+  # 显示控制
+  show_all_polygons: null           # 显示所有多边形
+  hide_all_polygons: null           # 隐藏所有多边形
+  toggle_all_polygons: T            # 切换所有多边形显示

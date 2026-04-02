@@ -1,0 +1,206 @@
+{
+  "summary": {
+    "total": 32,
+    "passed": 32,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "duration": "0.000s",
+    "pass_rate": 100.0
+  },
+  "generated_at": "2026-03-23T10:32:35.831178",
+  "tests": [
+    {
+      "name": "test_init (test_training_client.TestInteractiveClient.test_init)",
+      "status": "PASS",
+      "duration": 6.1e-05,
+      "error": null
+    },
+    {
+      "name": "test_run_connect_failure (test_training_client.TestInteractiveClient.test_run_connect_failure)",
+      "status": "PASS",
+      "duration": 0.00048,
+      "error": null
+    },
+    {
+      "name": "test_calculate_checksum_basic (test_training_client.TestMessageProtocol.test_calculate_checksum_basic)",
+      "status": "PASS",
+      "duration": 2.5e-05,
+      "error": null
+    },
+    {
+      "name": "test_calculate_checksum_consistency (test_training_client.TestMessageProtocol.test_calculate_checksum_consistency)",
+      "status": "PASS",
+      "duration": 2e-05,
+      "error": null
+    },
+    {
+      "name": "test_calculate_checksum_empty (test_training_client.TestMessageProtocol.test_calculate_checksum_empty)",
+      "status": "PASS",
+      "duration": 2.1e-05,
+      "error": null
+    },
+    {
+      "name": "test_pack_and_unpack_roundtrip (test_training_client.TestMessageProtocol.test_pack_and_unpack_roundtrip)",
+      "status": "PASS",
+      "duration": 2.3e-05,
+      "error": null
+    },
+    {
+      "name": "test_pack_header (test_training_client.TestMessageProtocol.test_pack_header)",
+      "status": "PASS",
+      "duration": 1.4e-05,
+      "error": null
+    },
+    {
+      "name": "test_pack_length (test_training_client.TestMessageProtocol.test_pack_length)",
+      "status": "PASS",
+      "duration": 1.3e-05,
+      "error": null
+    },
+    {
+      "name": "test_pack_structure (test_training_client.TestMessageProtocol.test_pack_structure)",
+      "status": "PASS",
+      "duration": 1.2e-05,
+      "error": null
+    },
+    {
+      "name": "test_pack_unicode (test_training_client.TestMessageProtocol.test_pack_unicode)",
+      "status": "PASS",
+      "duration": 1.2e-05,
+      "error": null
+    },
+    {
+      "name": "test_checksum_overflow (test_training_client.TestMessageProtocolEdgeCases.test_checksum_overflow)",
+      "status": "PASS",
+      "duration": 0.003765,
+      "error": null
+    },
+    {
+      "name": "test_pack_empty_message (test_training_client.TestMessageProtocolEdgeCases.test_pack_empty_message)",
+      "status": "PASS",
+      "duration": 2.4e-05,
+      "error": null
+    },
+    {
+      "name": "test_pack_large_message (test_training_client.TestMessageProtocolEdgeCases.test_pack_large_message)",
+      "status": "PASS",
+      "duration": 0.000346,
+      "error": null
+    },
+    {
+      "name": "test_receive_invalid_header (test_training_client.TestMessageProtocolReceive.test_receive_invalid_header)",
+      "status": "PASS",
+      "duration": 0.000322,
+      "error": null
+    },
+    {
+      "name": "test_receive_normal (test_training_client.TestMessageProtocolReceive.test_receive_normal)",
+      "status": "PASS",
+      "duration": 0.00025,
+      "error": null
+    },
+    {
+      "name": "test_receive_timeout (test_training_client.TestMessageProtocolReceive.test_receive_timeout)",
+      "status": "PASS",
+      "duration": 0.000192,
+      "error": null
+    },
+    {
+      "name": "test_connect_failure (test_training_client.TestTrainingClient.test_connect_failure)",
+      "status": "PASS",
+      "duration": 0.00012,
+      "error": null
+    },
+    {
+      "name": "test_connect_success (test_training_client.TestTrainingClient.test_connect_success)",
+      "status": "PASS",
+      "duration": 0.000216,
+      "error": null
+    },
+    {
+      "name": "test_create_task_failure (test_training_client.TestTrainingClient.test_create_task_failure)",
+      "status": "PASS",
+      "duration": 0.000365,
+      "error": null
+    },
+    {
+      "name": "test_create_task_success (test_training_client.TestTrainingClient.test_create_task_success)",
+      "status": "PASS",
+      "duration": 0.000335,
+      "error": null
+    },
+    {
+      "name": "test_delete_task_success (test_training_client.TestTrainingClient.test_delete_task_success)",
+      "status": "PASS",
+      "duration": 0.000534,
+      "error": null
+    },
+    {
+      "name": "test_disconnect (test_training_client.TestTrainingClient.test_disconnect)",
+      "status": "PASS",
+      "duration": 7.2e-05,
+      "error": null
+    },
+    {
+      "name": "test_get_progress_success (test_training_client.TestTrainingClient.test_get_progress_success)",
+      "status": "PASS",
+      "duration": 0.000348,
+      "error": null
+    },
+    {
+      "name": "test_get_task_status_success (test_training_client.TestTrainingClient.test_get_task_status_success)",
+      "status": "PASS",
+      "duration": 0.000335,
+      "error": null
+    },
+    {
+      "name": "test_init (test_training_client.TestTrainingClient.test_init)",
+      "status": "PASS",
+      "duration": 1.7e-05,
+      "error": null
+    },
+    {
+      "name": "test_list_tasks_success (test_training_client.TestTrainingClient.test_list_tasks_success)",
+      "status": "PASS",
+      "duration": 0.000304,
+      "error": null
+    },
+    {
+      "name": "test_ping_failure (test_training_client.TestTrainingClient.test_ping_failure)",
+      "status": "PASS",
+      "duration": 0.000273,
+      "error": null
+    },
+    {
+      "name": "test_ping_success (test_training_client.TestTrainingClient.test_ping_success)",
+      "status": "PASS",
+      "duration": 0.000296,
+      "error": null
+    },
+    {
+      "name": "test_send_request_not_connected (test_training_client.TestTrainingClient.test_send_request_not_connected)",
+      "status": "PASS",
+      "duration": 1.5e-05,
+      "error": null
+    },
+    {
+      "name": "test_send_request_success (test_training_client.TestTrainingClient.test_send_request_success)",
+      "status": "PASS",
+      "duration": 0.001041,
+      "error": null
+    },
+    {
+      "name": "test_start_training_success (test_training_client.TestTrainingClient.test_start_training_success)",
+      "status": "PASS",
+      "duration": 0.000319,
+      "error": null
+    },
+    {
+      "name": "test_stop_training_success (test_training_client.TestTrainingClient.test_stop_training_success)",
+      "status": "PASS",
+      "duration": 0.00031,
+      "error": null
+    }
+  ]
+}

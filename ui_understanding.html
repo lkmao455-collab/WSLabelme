@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 图像标注与训练系统 - UI 理解演示</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background-color: #1a1a2e;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        /* 主窗口容器 - 1200x800 */
+        .main-window {
+            width: 1200px;
+            height: 800px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* ========== Banner 区域 (参考 desktopgui-wwp_codebar 风格) ========== */
+        .banner {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 70px;
+        }
+        
+        /* Banner 顶部区域 - 70px 高 */
+        .banner-top {
+            display: flex;
+            align-items: center;
+            height: 70px;
+            padding: 0;
+        }
+        
+        /* 左侧导航按钮组 - 每个 64x70px */
+        .nav-buttons {
+            display: flex;
+            align-items: center;
+        }
+        
+        .nav-btn {
+            width: 64px;
+            height: 70px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: none;
+            background: transparent;
+            color: white;
+            font-size: 11px;
+            gap: 4px;
+        }
+        
+        .nav-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        .nav-btn.active {
+            background-color: rgba(255, 255, 255, 0.2);
+            border-bottom: 3px solid #fff;
+        }
+        
+        .nav-btn svg {
+            width: 36px;
+            height: 36px;
+            fill: #ffffff;
+        }
+        
+        /* 弹性空间 */
+        .spacer {
+            flex: 1;
+        }
+        
+        /* Logo 区域 - 465x70px */
+        .logo-area {
+            width: 465px;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(255, 255, 255, 0.1);
+            margin-right: 10px;
+        }
+        
+        .logo-area span {
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+        }
+        
+        /* 窗口控制按钮组 */
+        .window-controls {
+            display: flex;
+            margin-right: 10px;
+        }
+        
+        .window-btn {
+            width: 46px;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+            font-size: 20px;
+            border: none;
+            background: transparent;
+        }
+        
+        .window-btn:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+        
+        .window-btn.close:hover {
+            background-color: #e81123;
+        }
+        
+        /* Banner 底部指示条 - 4px 高 */
+        .banner-indicator {
+            height: 4px;
+            background-color: rgba(255, 255, 255, 0.3);
+        }
+        
+        /* ========== 主内容区域 ========== */
+        .contents {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        /* 左侧全局工具栏 - 64px 宽 (参考项目风格) */
+        .left-toolbar {
+            width: 64px;
+            background-color: #f8f8f8;
+            border-right: 1px solid #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 10px;
+        }
+        
+        .tool-btn {
+            width: 52px;
+            height: 52px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            border: 2px solid #cccccc;
+            background-color: #ffffff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+        
+        .tool-btn:hover {
+            background-color: #f0f0f0;
+            border-color: #999999;
+        }
+        
+        .tool-btn.active {
+            background-color: #667eea;
+            border-color: #667eea;
+        }
+        
+        .tool-btn svg {
+            width: 28px;
+            height: 28px;
+            fill: #666666;
+        }
+        
+        .tool-btn.active svg {
+            fill: #ffffff;
+        }
+        
+        /* 中央内容区 - QStackedWidget */
+        .central-content {
+            flex: 1;
+            background-color: #ffffff;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* 页面容器 */
+        .page {
+            display: none;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .page.active {
+            display: flex;
+        }
+        
+        /* ========== 图像标注页面 ========== */
+        .annotation-page {
+            flex-direction: row;
+        }
+        
+        /* 标注工具栏 (页面内左侧) */
+        .annotation-tools {
+            width: 80px;
+            background-color: #f8f8f8;
+            border-right: 1px solid #cccccc;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .annotation-tool-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 5px;
+            border: 2px solid #cccccc;
+            background-color: #ffffff;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: bold;
+            transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+        
+        .annotation-tool-btn:hover {
+            background-color: #f0f0f0;
+        }
+        
+        .annotation-tool-btn.active {
+            background-color: #ffcccc;
+            border-color: #ff6666;
+        }
+        
+        .annotation-tool-btn svg {
+            width: 24px;
+            height: 24px;
+            fill: #666666;
+        }
+        
+        /* 画布区域 */
+        .canvas-area {
+            flex: 1;
+            background-color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #e0e0e0;
+            margin: 0 5px;
+            position: relative;
+        }
+        
+        .canvas-placeholder {
+            text-align: center;
+            color: #999999;
+            font-size: 16px;
+        }
+        
+        .canvas-placeholder svg {
+            width: 64px;
+            height: 64px;
+            fill: #cccccc;
+            margin-bottom: 10px;
+        }
+        
+        /* 右侧面板 */
+        .right-panel {
+            width: 250px;
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid #cccccc;
+        }
+        
+        .panel-section {
+            flex: 1;
+            background-color: #f8f8f8;
+            padding: 10px;
+            border-bottom: 1px solid #cccccc;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .panel-title {
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333333;
+        }
+        
+        .panel-btn {
+            padding: 8px 12px;
+            background-color: #667eea;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 10px;
+            font-size: 13px;
+        }
+        
+        .panel-btn:hover {
+            background-color: #5568d3;
+        }
+        
+        .list-container {
+            flex: 1;
+            background-color: white;
+            border: 1px solid #cccccc;
+            border-radius: 4px;
+            overflow-y: auto;
+        }
+        
+        .list-item {
+            padding: 8px 10px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        
+        .list-item:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .list-item.selected {
+            background-color: #e3f2fd;
+        }
+        
+        /* ========== 模型训练页面 ========== */
+        .training-page {
+            flex-direction: column;
+            padding: 20px;
+        }
+        
+        .page-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333333;
+            margin-bottom: 20px;
+        }
+        
+        .training-controls {
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+            background-color: #f8f8f8;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .training-btn {
+            width: 100px;
+            height: 100px;
+            border-radius: 10px;
+            border: 2px solid #cccccc;
+            background-color: #e0e0e0;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .training-btn:hover {
+            background-color: #d0d0d0;
+        }
+        
+        .training-btn.active {
+            background-color: #ffcccc;
+            border-color: #ff6666;
+        }
+        
+        .training-btn svg {
+            width: 40px;
+            height: 40px;
+            fill: #666666;
+        }
+        
+        .training-log {
+            flex: 1;
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            font-family: 'Consolas', monospace;
+            font-size: 13px;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-y: auto;
+            line-height: 1.6;
+        }
+        
+        .log-line {
+            margin-bottom: 5px;
+        }
+        
+        .log-info { color: #4ec9b0; }
+        .log-warning { color: #dcdcaa; }
+        .log-error { color: #f48771; }
+        
+        /* ========== 模型使用页面 ========== */
+        .usage-page {
+            flex-direction: column;
+            padding: 20px;
+        }
+        
+        .usage-controls {
+            background-color: #f8f8f8;
+            border: 1px solid #cccccc;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .usage-btn {
+            width: 100%;
+            padding: 15px 20px;
+            background-color: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 15px;
+            margin-bottom: 15px;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .usage-btn:hover {
+            background-color: #5568d3;
+        }
+        
+        .usage-btn svg {
+            width: 24px;
+            height: 24px;
+            fill: white;
+        }
+        
+        .model-info {
+            background-color: white;
+            border: 1px solid #cccccc;
+            border-radius: 5px;
+            padding: 15px;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+        
+        .model-info-label {
+            font-weight: bold;
+            color: #333333;
+        }
+        
+        /* ========== 系统设置页面 ========== */
+        .settings-page {
+            flex-direction: column;
+            padding: 20px;
+        }
+        
+        .settings-tabs {
+            display: flex;
+            border-bottom: 2px solid #e0e0e0;
+            margin-bottom: 20px;
+        }
+        
+        .tab-btn {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #666666;
+            transition: all 0.3s;
+        }
+        
+        .tab-btn:hover {
+            color: #667eea;
+        }
+        
+        .tab-btn.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+        
+        .settings-content {
+            padding: 20px;
+            background-color: #f8f8f8;
+            border-radius: 8px;
+        }
+        
+        .setting-item {
+            display: flex;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .setting-item:last-child {
+            border-bottom: none;
+        }
+        
+        .setting-checkbox {
+            width: 18px;
+            height: 18px;
+            margin-right: 12px;
+        }
+        
+        .setting-label {
+            font-size: 14px;
+            color: #333333;
+        }
+        
+        /* ========== 说明区域 ========== */
+        .info-panel {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            font-size: 14px;
+            max-width: 800px;
+        }
+        
+        .info-panel h3 {
+            margin-bottom: 10px;
+            color: #667eea;
+        }
+        
+        .info-panel ul {
+            margin-left: 20px;
+            line-height: 1.8;
+        }
+    </style>
+</head>
+<body>
+    <!-- 主窗口 -->
+    <div class="main-window">
+        <!-- ========== Banner 区域 ========== -->
+        <div class="banner">
+            <div class="banner-top">
+                <!-- 导航按钮组 -->
+                <div class="nav-buttons">
+                    <button class="nav-btn active" onclick="switchPage('annotation')" title="图像标注">
+                        <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+                        <span>图像标注</span>
+                    </button>
+                    <button class="nav-btn" onclick="switchPage('training')" title="模型训练">
+                        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                        <span>模型训练</span>
+                    </button>
+                    <button class="nav-btn" onclick="switchPage('usage')" title="模型使用">
+                        <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                        <span>模型使用</span>
+                    </button>
+                    <button class="nav-btn" onclick="switchPage('settings')" title="系统设置">
+                        <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+                        <span>系统设置</span>
+                    </button>
+                </div>
+                
+                <!-- 弹性空间 -->
+                <div class="spacer"></div>
+                
+                <!-- Logo 区域 -->
+                <div class="logo-area">
+                    <span>🖼️ WSLabelme - AI 图像标注系统</span>
+                </div>
+                
+                <!-- 窗口控制按钮 -->
+                <div class="window-controls">
+                    <button class="window-btn" title="最小化">─</button>
+                    <button class="window-btn" title="最大化">□</button>
+                    <button class="window-btn close" title="关闭">×</button>
+                </div>
+            </div>
+            <!-- Banner 底部指示条 -->
+            <div class="banner-indicator"></div>
+        </div>
+        
+        <!-- ========== 主内容区域 ========== -->
+        <div class="contents">
+            <!-- 左侧全局工具栏 -->
+            <div class="left-toolbar">
+                <button class="tool-btn active" title="编辑模式">
+                    <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                </button>
+                <button class="tool-btn" title="矩形标注">
+                    <svg viewBox="0 0 24 24"><path d="M3 3h18v18H3V3zm2 2v14h14V5H5z"/></svg>
+                </button>
+                <button class="tool-btn" title="多边形标注">
+                    <svg viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2zm0 3.5L18.5 20H5.5L12 5.5z"/></svg>
+                </button>
+                <button class="tool-btn" title="清除单个">
+                    <svg viewBox="0 0 24 24"><path d="M16 9v10H8V9h8m-1.5-6h-5l-1 1H5v2h14V4h-3.5l-1-1zM18 7H6v12c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7z"/></svg>
+                </button>
+                <button class="tool-btn" title="撤销">
+                    <svg viewBox="0 0 24 24"><path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></svg>
+                </button>
+                <button class="tool-btn" title="重做">
+                    <svg viewBox="0 0 24 24"><path d="M18.4 10.6C16.55 9 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 16c1.05-3.19 4.05-5.5 7.6-5.5 1.95 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z"/></svg>
+                </button>
+            </div>
+            
+            <!-- 中央内容区 (QStackedWidget) -->
+            <div class="central-content">
+                <!-- 页面 1: 图像标注 -->
+                <div class="page annotation-page active" id="page-annotation">
+                    <!-- 标注工具栏 -->
+                    <div class="annotation-tools">
+                        <button class="annotation-tool-btn active">
+                            <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z"/></svg>
+                            <span>编辑</span>
+                        </button>
+                        <button class="annotation-tool-btn">
+                            <svg viewBox="0 0 24 24"><path d="M3 3h18v18H3V3zm2 2v14h14V5H5z"/></svg>
+                            <span>矩形</span>
+                        </button>
+                        <button class="annotation-tool-btn">
+                            <svg viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2z"/></svg>
+                            <span>多边形</span>
+                        </button>
+                        <button class="annotation-tool-btn">
+                            <svg viewBox="0 0 24 24"><path d="M16 9v10H8V9h8m-1.5-6h-5l-1 1H5v2h14V4h-3.5l-1-1z"/></svg>
+                            <span>删除</span>
+                        </button>
+                        <button class="annotation-tool-btn">
+                            <svg viewBox="0 0 24 24"><path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></svg>
+                            <span>撤销</span>
+                        </button>
+                        <button class="annotation-tool-btn">
+                            <svg viewBox="0 0 24 24"><path d="M18.4 10.6C16.55 9 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 16c1.05-3.19 4.05-5.5 7.6-5.5 1.95 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z"/></svg>
+                            <span>重做</span>
+                        </button>
+                    </div>
+                    
+                    <!-- 画布区域 -->
+                    <div class="canvas-area">
+                        <div class="canvas-placeholder">
+                            <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+                            <div>图像标注画布区域</div>
+                            <div style="font-size: 12px; margin-top: 8px; color: #cccccc;">拖拽图片到此处或点击导入图片</div>
+                        </div>
+                    </div>
+                    
+                    <!-- 右侧面板 -->
+                    <div class="right-panel">
+                        <!-- 标签管理 -->
+                        <div class="panel-section">
+                            <div class="panel-title">标签管理</div>
+                            <button class="panel-btn">+ 添加新标签</button>
+                            <div class="list-container">
+                                <div class="list-item selected">person</div>
+                                <div class="list-item">car</div>
+                                <div class="list-item">dog</div>
+                                <div class="list-item">cat</div>
+                            </div>
+                        </div>
+                        <!-- 文件列表 -->
+                        <div class="panel-section">
+                            <div class="panel-title">图片文件</div>
+                            <button class="panel-btn">📁 导入图片文件夹</button>
+                            <button class="panel-btn">📷 连接相机</button>
+                            <div class="list-container">
+                                <div class="list-item selected">image_001.jpg</div>
+                                <div class="list-item">image_002.jpg</div>
+                                <div class="list-item">image_003.jpg</div>
+                                <div class="list-item">image_004.jpg</div>
+                                <div class="list-item">image_005.jpg</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 页面 2: 模型训练 -->
+                <div class="page training-page" id="page-training">
+                    <h1 class="page-title">模型训练</h1>
+                    <div class="training-controls">
+                        <button class="training-btn">
+                            <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                            <span>运行</span>
+                        </button>
+                        <button class="training-btn">
+                            <svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
+                            <span>停止</span>
+                        </button>
+                    </div>
+                    <div class="training-log">
+                        <div class="log-line log-info">[INFO] 初始化训练环境...</div>
+                        <div class="log-line log-info">[INFO] 加载数据集：1000 张图片</div>
+                        <div class="log-line log-info">[INFO] 数据增强：随机翻转，旋转</div>
+                        <div class="log-line log-warning">[WARN] GPU 显存占用较高</div>
+                        <div class="log-line log-info">[INFO] 开始训练 Epoch 1/100</div>
+                        <div class="log-line log-info">[INFO] Batch 1/50 - Loss: 2.345</div>
+                        <div class="log-line log-info">[INFO] Batch 2/50 - Loss: 2.123</div>
+                        <div class="log-line log-info">[INFO] Batch 3/50 - Loss: 1.987</div>
+                    </div>
+                </div>
+                
+                <!-- 页面 3: 模型使用 -->
+                <div class="page usage-page" id="page-usage">
+                    <h1 class="page-title">模型使用</h1>
+                    <div class="usage-controls">
+                        <button class="usage-btn">
+                            <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                            <span>下载模型到智能相机</span>
+                        </button>
+                        <button class="usage-btn">
+                            <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                            <span>下载模型到本地电脑</span>
+                        </button>
+                        <div class="model-info">
+                            <div class="model-info-label">当前模型信息：</div>
+                            <div>模型名称：YOLOv5-Custom</div>
+                            <div>模型版本：v2.1.0</div>
+                            <div>训练日期：2026-03-01</div>
+                            <div>类别数量：4</div>
+                            <div>模型大小：28.5 MB</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 页面 4: 系统设置 -->
+                <div class="page settings-page" id="page-settings">
+                    <h1 class="page-title">系统设置</h1>
+                    <div class="settings-tabs">
+                        <button class="tab-btn active">通用设置</button>
+                        <button class="tab-btn">快捷键设置</button>
+                    </div>
+                    <div class="settings-content">
+                        <div class="setting-item">
+                            <input type="checkbox" class="setting-checkbox" checked>
+                            <span class="setting-label">自动保存标注结果</span>
+                        </div>
+                        <div class="setting-item">
+                            <input type="checkbox" class="setting-checkbox" checked>
+                            <span class="setting-label">显示标签弹窗</span>
+                        </div>
+                        <div class="setting-item">
+                            <input type="checkbox" class="setting-checkbox">
+                            <span class="setting-label">启用 GPU 加速</span>
+                        </div>
+                        <div class="setting-item">
+                            <input type="checkbox" class="setting-checkbox" checked>
+                            <span class="setting-label">启动时自动加载上次项目</span>
+                        </div>
+                        <div class="setting-item">
+                            <input type="checkbox" class="setting-checkbox">
+                            <span class="setting-label">深色模式</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 说明面板 -->
+    <div class="info-panel">
+        <h3>🎨 UI 设计理解演示</h3>
+        <ul>
+            <li><strong>顶部 Banner:</strong> 渐变紫色背景 (#667eea → #764ba2)，包含 4 个导航按钮、Logo 区域 (465x70px)、窗口控制按钮</li>
+            <li><strong>左侧工具栏:</strong> 64px 宽，全局显示，包含编辑、矩形、多边形、删除、撤销、重做工具</li>
+            <li><strong>4 个功能页面:</strong> 图像标注、模型训练、模型使用、系统设置</li>
+            <li><strong>图像标注页:</strong> 左侧标注工具栏 (80px) + 中央画布 + 右侧面板 (标签管理 + 文件列表)</li>
+            <li><strong>窗口尺寸:</strong> 1200x800px (可调整)</li>
+        </ul>
+        <div style="margin-top: 10px; color: #999;">
+            💡 点击顶部导航按钮切换页面
+        </div>
+    </div>
+    
+    <script>
+        function switchPage(pageName) {
+            // 隐藏所有页面
+            document.querySelectorAll('.page').forEach(page => {
+                page.classList.remove('active');
+            });
+            
+            // 取消所有导航按钮激活状态
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // 显示目标页面
+            document.getElementById('page-' + pageName).classList.add('active');
+            
+            // 激活对应导航按钮
+            event.currentTarget.classList.add('active');
+        }
+    </script>
+</body>
+</html>

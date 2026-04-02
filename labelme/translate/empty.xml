@@ -1,0 +1,821 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE TS>
+<TS version="2.1">
+<!-- 
+Labelme翻译模板文件 (Translation Template File)
+文件格式: Qt TS (Translation Source)
+用途: 为Labelme提供多语言支持的基础模板
+
+使用说明:
+1. 这是翻译模板文件，不应直接修改为具体语言翻译
+2. 使用时复制此文件并重命名为对应语言代码，如 zh_CN.ts, en.ts, ja.ts 等
+3. translation 标签中的 type="unfinished" 表示需要翻译的内容
+4. 翻译完成后，使用Qt Linguist工具编译为 .qm 文件
+5. 在Labelme配置中指定对应的语言文件路径
+
+注意事项:
+- 保留所有占位符和格式字符串，如 %s, %d, {} 等
+- 特殊字符如 & 需要转义为 &
+- 保持XML标签的完整性
+- 翻译内容应简洁明了，符合目标语言习惯
+-->
+
+<!-- 文件头部说明:
+本文件是Labelme的翻译模板文件，使用Qt的TS格式。
+主要功能包括：界面文本的翻译模板、占位符说明、翻译指导等。
+这是Labelme国际化支持的基础模板，为其他语言翻译提供参考和框架。 -->
+
+<context>
+    <name>Canvas</name>
+    <!-- 画布组件的翻译模板 -->
+    <message>
+        <location filename="../widgets/canvas.py" line="235"/>
+        <source>Image</source>
+        <!-- 画布显示的图像标签，通常显示在状态栏或工具提示中 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../widgets/canvas.py" line="249"/>
+        <source>Click & drag to move point</source>
+        <!-- 提示用户如何移动多边形的顶点 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../widgets/canvas.py" line="259"/>
+        <source>Click & drag to move shape '%s'</source>
+        <!-- 提示用户如何移动整个形状，%s 是形状的标签名称 -->
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+
+<context>
+    <name>MainWindow</name>
+    <!-- 主窗口的翻译模板 -->
+    <message>
+        <location filename="../app.py" line="113"/>
+        <source>Flags</source>
+        <!-- 标志/标记区域的标题 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="125"/>
+        <source>Polygon Labels</source>
+        <!-- 多边形标签列表的标题 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="130"/>
+        <source>Select label to start annotating for it. Press 'Esc' to deselect.</source>
+        <!-- 选择标签开始标注的提示信息 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="141"/>
+        <source>Label List</source>
+        <!-- 标签列表的标题 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="146"/>
+        <source>Search Filename</source>
+        <!-- 搜索文件名的输入框提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="155"/>
+        <source>File List</source>
+        <!-- 文件列表的标题 -->
+        <translation type="unfinished"></translation>
+    </message>
+    
+    <!-- 文件菜单翻译模板 -->
+    <message>
+        <location filename="../app.py" line="208"/>
+        <source>&Quit</source>
+        <!-- 退出应用程序菜单项 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="208"/>
+        <source>Quit application</source>
+        <!-- 退出应用程序的工具提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="215"/>
+        <source>&Open
+</source>
+        <!-- 打开文件菜单项 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="215"/>
+        <source>Open image or label file</source>
+        <!-- 打开图像或标签文件的工具提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="222"/>
+        <source>Open Dir</source>
+        <!-- 打开目录菜单项 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="229"/>
+        <source>&Next Image</source>
+        <!-- 打开下一张图像菜单项 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="229"/>
+        <source>Open next (hold Ctl+Shift to copy labels)</source>
+        <!-- 打开下一张图像的说明，按住Ctrl+Shift可复制标签 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="237"/>
+        <source>&Prev Image</source>
+        <!-- 打开上一张图像菜单项 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="237"/>
+        <source>Open prev (hold Ctl+Shift to copy labels)</source>
+        <!-- 打开上一张图像的说明，按住Ctrl+Shift可复制标签 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="245"/>
+        <source>&Save
+</source>
+        <!-- 保存标签菜单项 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="245"/>
+        <source>Save labels to file</source>
+        <!-- 保存标签到文件的工具提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="253"/>
+        <source>&Save As</source>
+        <!-- 另存为菜单项 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="253"/>
+        <source>Save labels to a different file</source>
+        <!-- 保存标签到不同文件的工具提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="262"/>
+        <source>&Delete File</source>
+        <!-- 删除文件菜单项 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="262"/>
+        <source>Delete current label file</source>
+        <!-- 删除当前标签文件的工具提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="271"/>
+        <source>&Change Output Dir</source>
+        <!-- 更改输出目录菜单项 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="271"/>
+        <source>Change where annotations are loaded/saved</source>
+        <!-- 更改标注加载/保存位置的工具提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="279"/>
+        <source>Save &Automatically</source>
+        <!-- 自动保存菜单项 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="279"/>
+        <source>Save automatically</source>
+        <!-- 自动保存的工具提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="290"/>
+        <source>Save With Image Data</source>
+        <!-- 保存时包含图像数据菜单项 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="292"/>
+        <source>Save image data in label file</source>
+        <!-- 在标签文件中保存图像数据的工具提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="298"/>
+        <source>&Close</source>
+        <!-- 关闭菜单项 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="302"/>
+        <source>Close current file</source>
+        <!-- 关闭当前文件的工具提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="305"/>
+        <source>Keep Previous Annotation</source>
+        <!-- 保持上一个标注菜单项 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="305"/>
+        <source>Toggle "keep pevious annotation" mode</source>
+        <!-- 切换"保持上一个标注"模式的工具提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    
+    <!-- 绘图工具翻译模板 -->
+    <message>
+        <location filename="../app.py" line="315"/>
+        <source>Create Polygons</source>
+        <!-- 创建多边形工具 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="315"/>
+        <source>Start drawing polygons</source>
+        <!-- 开始绘制多边形的工具提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="323"/>
+        <source>Create Rectangle</source>
+        <!-- 创建矩形工具 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="323"/>
+        <source>Start drawing rectangles</source>
+        <!-- 开始绘制矩形的工具提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="331"/>
+        <source>Create Circle</source>
+        <!-- 创建圆形工具 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="331"/>
+        <source>Start drawing circles</source>
+        <!-- 开始绘制圆形的工具提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="339"/>
+        <source>Create Line</source>
+        <!-- 创建线条工具 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="339"/>
+        <source>Start drawing lines</source>
+        <!-- 开始绘制线条的工具提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="347"/>
+        <source>Create Point</source>
+        <!-- 创建点工具 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="347"/>
+        <source>Start drawing points</source>
+        <!-- 开始绘制点的工具提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="355"/>
+        <source>Create LineStrip</source>
+        <!-- 创建线条带工具 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="355"/>
+        <source>Start drawing linestrip. Ctrl+LeftClick ends creation.</source>
+        <!-- 开始绘制线条带的工具提示，Ctrl+左键结束创建 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="363"/>
+        <source>Create AI-Polygon</source>
+        <!-- 创建AI多边形工具 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="363"/>
+        <source>Start drawing ai_polygon. Ctrl+LeftClick ends creation.</source>
+        <!-- 开始绘制AI多边形的工具提示，Ctrl+左键结束创建 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="378"/>
+        <source>Create AI-Mask</source>
+        <!-- 创建AI掩码工具 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="378"/>
+        <source>Start drawing ai_mask. Ctrl+LeftClick ends creation.</source>
+        <!-- 开始绘制AI掩码的工具提示，Ctrl+左键结束创建 -->
+        <translation type="unfinished"></translation>
+    </message>
+    
+    <!-- 编辑功能翻译模板 -->
+    <message>
+        <location filename="../app.py" line="393"/>
+        <source>Edit Polygons</source>
+        <!-- 编辑多边形工具 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="393"/>
+        <source>Move and edit the selected polygons</source>
+        <!-- 移动和编辑选中多边形的工具提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="402"/>
+        <source>Delete Polygons</source>
+        <!-- 删除多边形工具 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="402"/>
+        <source>Delete the selected polygons</source>
+        <!-- 删除选中多边形的工具提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="410"/>
+        <source>Duplicate Polygons</source>
+        <!-- 复制多边形工具 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="410"/>
+        <source>Create a duplicate of the selected polygons</source>
+        <!-- 创建选中多边形副本的工具提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="418"/>
+        <source>Copy Polygons</source>
+        <!-- 复制多边形到剪贴板工具 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="418"/>
+        <source>Copy selected polygons to clipboard</source>
+        <!-- 将选中多边形复制到剪贴板的工具提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="426"/>
+        <source>Paste Polygons</source>
+        <!-- 粘贴多边形工具 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="426"/>
+        <source>Paste copied polygons</source>
+        <!-- 粘贴已复制多边形的工具提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="434"/>
+        <source>Undo last point</source>
+        <!-- 撤销最后一点工具 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="434"/>
+        <source>Undo last drawn point</source>
+        <!-- 撤销最后绘制点的工具提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="443"/>
+        <source>Remove Selected Point</source>
+        <!-- 移除选中点工具 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="447"/>
+        <source>Remove selected point from polygon</source>
+        <!-- 从多边形中移除选中点的工具提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="451"/>
+        <source>Undo
+</source>
+        <!-- 撤销操作 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="451"/>
+        <source>Undo last add and edit of shape</source>
+        <!-- 撤销最后的添加和编辑操作 -->
+        <translation type="unfinished"></translation>
+    </message>
+    
+    <!-- 显示控制翻译模板 -->
+    <message>
+        <location filename="../app.py" line="460"/>
+        <source>&Hide
+Polygons</source>
+        <!-- 隐藏多边形菜单项 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="460"/>
+        <source>Hide all polygons</source>
+        <!-- 隐藏所有多边形的工具提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="468"/>
+        <source>&Show
+Polygons</source>
+        <!-- 显示多边形菜单项 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="468"/>
+        <source>Show all polygons</source>
+        <!-- 显示所有多边形的工具提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="476"/>
+        <source>&Toggle
+Polygons</source>
+        <!-- 切换多边形显示菜单项 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="476"/>
+        <source>Toggle all polygons</source>
+        <!-- 切换所有多边形显示的工具提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="485"/>
+        <source>&Tutorial</source>
+        <!-- 教程菜单项 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="485"/>
+        <source>Show tutorial page</source>
+        <!-- 显示教程页面的工具提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    
+    <!-- 缩放功能翻译模板 -->
+    <message>
+        <location filename="../app.py" line="494"/>
+        <source>Zoom</source>
+        <!-- 缩放功能 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="500"/>
+        <source>Zoom in or out of the image. Also accessible with {} and {} from the canvas.</source>
+        <!-- 缩放图像的说明，也可通过画布上的{}和{}操作 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="500"/>
+        <source>Ctrl+Wheel</source>
+        <!-- Ctrl+滚轮缩放的快捷键说明 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="515"/>
+        <source>Zoom &In</source>
+        <!-- 放大菜单项 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="515"/>
+        <source>Increase zoom level</source>
+        <!-- 增加缩放级别的工具提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="523"/>
+        <source>&Zoom Out</source>
+        <!-- 缩小菜单项 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="523"/>
+        <source>Decrease zoom level</source>
+        <!-- 降低缩放级别的工具提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="531"/>
+        <source>&Original size</source>
+        <!-- 原始尺寸菜单项 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="531"/>
+        <source>Zoom to original size</source>
+        <!-- 缩放到原始尺寸的工具提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="539"/>
+        <source>&Keep Previous Scale</source>
+        <!-- 保持上一个缩放比例菜单项 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="539"/>
+        <source>Keep previous zoom scale</source>
+        <!-- 保持上一个缩放比例的工具提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="547"/>
+        <source>&Fit Window</source>
+        <!-- 适应窗口菜单项 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="547"/>
+        <source>Zoom follows window size</source>
+        <!-- 缩放跟随窗口大小的工具提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="556"/>
+        <source>Fit &Width</source>
+        <!-- 适应宽度菜单项 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="556"/>
+        <source>Zoom follows window width</source>
+        <!-- 缩放跟随窗口宽度的工具提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    
+    <!-- 图像处理翻译模板 -->
+    <message>
+        <location filename="../app.py" line="566"/>
+        <source>&Brightness Contrast</source>
+        <!-- 亮度对比度菜单项 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="570"/>
+        <source>Adjust brightness and contrast</source>
+        <!-- 调整亮度和对比度的工具提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="591"/>
+        <source>&Edit Label</source>
+        <!-- 编辑标签菜单项 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="591"/>
+        <source>Modify the label of the selected polygon</source>
+        <!-- 修改选中多边形标签的工具提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="600"/>
+        <source>Fill Drawing Polygon</source>
+        <!-- 填充绘制多边形菜单项 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="600"/>
+        <source>Fill polygon while drawing</source>
+        <!-- 绘制时填充多边形的工具提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    
+    <!-- 菜单翻译模板 -->
+    <message>
+        <location filename="../app.py" line="712"/>
+        <source>&File</source>
+        <!-- 文件菜单 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="712"/>
+        <source>&Edit</source>
+        <!-- 编辑菜单 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="712"/>
+        <source>&View</source>
+        <!-- 视图菜单 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="712"/>
+        <source>&Help</source>
+        <!-- 帮助菜单 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="712"/>
+        <source>Open &Recent</source>
+        <!-- 打开最近文件菜单 -->
+        <translation type="unfinished"></translation>
+    </message>
+    
+    <!-- AI功能翻译模板 -->
+    <message>
+        <location filename="../app.py" line="783"/>
+        <source>AI Model</source>
+        <!-- AI模型菜单项 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="830"/>
+        <source>%s started.</source>
+        <!-- AI模型%s已启动的提示信息 -->
+        <translation type="unfinished"></translation>
+    </message>
+    
+    <!-- 错误提示翻译模板 -->
+    <message>
+        <location filename="../app.py" line="1404"/>
+        <source>Invalid label</source>
+        <!-- 无效标签错误提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="1404"/>
+        <source>Invalid label '{}' with validation type '{}'</source>
+        <!-- 带验证类型的无效标签错误提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="1343"/>
+        <source>Error saving label data</source>
+        <!-- 保存标签数据错误 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="1343"/>
+        <source><b>%s</b></source>
+        <!-- 错误信息的HTML格式显示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="1577"/>
+        <source>Error opening file</source>
+        <!-- 打开文件错误 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="1534"/>
+        <source>No such file: <b>%s</b></source>
+        <!-- 文件不存在错误 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="1540"/>
+        <source>Loading %s...</source>
+        <!-- 正在加载%s的提示信息 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="1549"/>
+        <source><p><b>%s</b></p><p>Make sure <i>%s</i> is a valid label file.</source>
+        <!-- 确保%s是有效标签文件的提示信息 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="1584"/>
+        <source>Error reading %s</source>
+        <!-- 读取%s错误 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="1577"/>
+        <source><p>Make sure <i>{0}</i> is a valid image file.<br/>Supported image formats: {1}</p></source>
+        <!-- 确保{0}是有效图像文件，支持的图像格式：{1} -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="1644"/>
+        <source>Loaded %s</source>
+        <!-- 已加载%s的提示信息 -->
+        <translation type="unfinished"></translation>
+    </message>
+    
+    <!-- 文件对话框翻译模板 -->
+    <message>
+        <location filename="../app.py" line="1786"/>
+        <source>Image & Label files (%s)</source>
+        <!-- 图像和标签文件过滤器 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="1792"/>
+        <source>%s - Choose Image or Label file</source>
+        <!-- 选择图像或标签文件对话框标题 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="1809"/>
+        <source>%s - Save/Load Annotations in Directory</source>
+        <!-- 在目录中保存/加载标注对话框标题 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="1823"/>
+        <source>%s . Annotations will be saved/loaded in %s</source>
+        <!-- 标注将在%s中保存/加载的提示信息 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="1853"/>
+        <source>%s - Choose File</source>
+        <!-- 选择文件对话框标题 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="1872"/>
+        <source>Label files (*%s)</source>
+        <!-- 标签文件过滤器 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="1872"/>
+        <source>Choose File</source>
+        <!-- 选择文件对话框标题 -->
+        <translation type="unfinished"></translation>
+    </message>
+    
+    <!-- 确认对话框翻译模板 -->
+    <message>
+        <location filename="../app.py" line="1906"/>
+        <source>You are about to permanently delete this label file, proceed anyway?</source>
+        <!-- 即将永久删除标签文件的确认提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="1987"/>
+        <source>Attention</source>
+        <!-- 注意/警告对话框标题 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="1944"/>
+        <source>Save annotations to "{}" before closing?</source>
+        <!-- 关闭前是否保存标注到{}的确认提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="1945"/>
+        <source>Save annotations?</source>
+        <!-- 保存标注的确认提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="1984"/>
+        <source>You are about to permanently delete {} polygons, proceed anyway?</source>
+        <!-- 即将永久删除{}个多边形的确认提示 -->
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="2017"/>
+        <source>%s - Open Directory</source>
+        <!-- 打开目录对话框标题 -->
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+</TS>

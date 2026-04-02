@@ -1,0 +1,142 @@
+# Labelme 自动化标注模块有效函数列表
+
+## bbox_from_text 模块
+
+### 主要功能函数
+
+1. **get_bboxes_from_texts**
+   - 功能：从文本提示生成边界框
+   - 参数：
+     - model: str - AI模型名称
+     - image: np.ndarray - 输入图像数组
+     - texts: list[str] - 文本提示列表
+   - 返回值：tuple[np.ndarray, np.ndarray, np.ndarray] - (边界框数组, 置信度分数数组, 标签数组)
+
+2. **nms_bboxes**
+   - 功能：对边界框进行非极大值抑制（NMS）
+   - 参数：
+     - boxes: np.ndarray - 边界框数组
+     - scores: np.ndarray - 置信度分数数组
+     - labels: np.ndarray - 标签数组
+     - iou_threshold: float - IoU阈值
+     - score_threshold: float - 分数阈值
+     - max_num_detections: int - 最大检测数量
+   - 返回值：tuple[np.ndarray, np.ndarray, np.ndarray] - (过滤后的边界框, 过滤后的分数, 过滤后的标签)
+
+3. **get_shapes_from_bboxes**
+   - 功能：将边界框转换为Labelme形状格式
+   - 参数：
+     - boxes: np.ndarray - 边界框数组
+     - scores: np.ndarray - 置信度分数数组
+     - labels: np.ndarray - 标签数组
+     - texts: list[str] - 文本提示列表
+   - 返回值：list[dict] - Labelme形状数据列表
+
+## polygon_from_mask 模块
+
+### 主要功能函数
+
+1. **compute_polygon_from_mask**
+   - 功能：从掩码生成多边形
+   - 参数：
+     - mask: np.ndarray - 二值掩码数组
+     - tolerance: float - 多边形简化容差
+   - 返回值：list[tuple[float, float]] - 多边形顶点列表
+
+## 使用示例
+
+### 在 app.py 中的使用方式
+
+```python
+# 导入模块
+from labelme._automation import bbox_from_text
+
+# 从文本生成边界框
+boxes, scores, labels = bbox_from_text.get_bboxes_from_texts(
+    model="yoloworld",
+    image=utils.img_qt_to_arr(self.image)[:, :, :3],
+    texts=texts,
+)
+
+# 非极大值抑制
+boxes, scores, labels = bbox_from_text.nms_bboxes(
+    boxes=boxes,
+    scores=scores,
+    labels=labels,
+    iou_threshold=iou_threshold,
+    score_threshold=score_threshold,
+    max_num_detections=100,
+)
+
+# 转换为形状格式
+shape_dicts = bbox_from_text.get_shapes_from_bboxes(
+    boxes=boxes,
+    scores=scores,
+    labels=labels,
+    texts=texts,
+)
+```
+
+## 注意事项
+
+1. 这些函数依赖于 `osam` 模块，如果该模块不可用，函数会返回空数组或原始数据
+2. 所有函数都包含详细的日志记录，便于调试
+3. 函数设计遵循类型提示，提供更好的代码提示和类型检查
+4. 边界框坐标格式为 [xmin, ymin, xmax, ymax]
+5. 多边形顶点格式为 [(x1, y1), (x2, y2), ...]
+
+## osam模块安装
+
+### 安装命令
+```bash
+pip install osam
+```
+
+### 安装验证
+```python
+import osam
+print("osam版本:", osam.__version__)  # 应该输出: 0.3.1
+```
+
+### osam模块包含的主要组件
+- **API函数**:
+  - `generate` - 生成标注
+  - `non_maximum_suppression` - 非极大值抑制
+  - `get_model_type_by_name` - 获取模型类型
+- **数据类型**:
+  - `GenerateRequest` - 生成请求类型
+  - `GenerateResponse` - 生成响应类型
+  - `Prompt` - 提示类型
+  - `BoundingBox` - 边界框类型
+  - `Annotation` - 标注类型
+
+## 错误处理
+
+- 如果 osam 模块不可用，函数会记录警告日志并返回适当的默认值
+- 所有函数都包含输入验证和异常处理
+- 日志记录使用 loguru 库，提供详细的调试信息
+
+## 常见问题和解决方案
+
+### 图像数据类型错误
+**问题**: `TypeError: Cannot handle this data type: (1, 1, 1), |u1`
+**原因**: 图像数据形状或数据类型不正确，导致PIL无法处理
+**解决方案**: 
+- 确保图像至少是2D数组
+- 确保图像是RGB格式（3通道）
+- 确保图像尺寸足够大（至少10x10像素）
+- 确保数据类型为uint8
+
+### 图像预处理
+bbox_from_text模块现在包含自动图像预处理功能：
+- 自动检测和修复单通道图像
+- 自动转换为RGB格式
+- 数据类型验证和转换
+- 图像尺寸检查
+
+### 调试信息
+启用调试日志可以看到详细的处理过程：
+```python
+import logging
+logging.getLogger('labelme').setLevel(logging.DEBUG)
+```

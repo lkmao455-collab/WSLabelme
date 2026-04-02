@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>训练客户端 - 详细流程图</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Microsoft YaHei', sans-serif; background: #f0f2f5; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        h1 { text-align: center; color: #333; margin-bottom: 30px; }
+        h2 { color: #1890ff; margin: 20px 0 15px; border-left: 4px solid #1890ff; padding-left: 15px; }
+        h3 { color: #52c41a; margin: 15px 0 10px; }
+        h4 { color: #722ed1; margin: 12px 0 8px; }
+
+        .flow-container { background: white; border-radius: 10px; padding: 30px; margin-bottom: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+
+        /* 流程图样式 */
+        .flow-step {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            margin: 10px;
+            min-width: 150px;
+            font-weight: bold;
+        }
+        .flow-step.success { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+        .flow-step.warning { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        .flow-step.info { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+
+        .arrow { color: #667eea; font-size: 24px; margin: 0 10px; }
+        .arrow-down { text-align: center; font-size: 24px; color: #667eea; margin: 10px 0; }
+
+        .flow-row { text-align: center; margin: 20px 0; }
+
+        /* 代码块样式 - 增强版 */
+        .code-wrapper {
+            position: relative;
+            margin: 15px 0;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .code-header {
+            background: #21252b;
+            color: #abb2bf;
+            padding: 8px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #181a1f;
+        }
+        .code-language {
+            font-size: 12px;
+            color: #61afef;
+            font-weight: 600;
+        }
+        .copy-btn {
+            background: #4caf50;
+            color: white;
+            border: none;
+            padding: 4px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.2s;
+        }
+        .copy-btn:hover { background: #45a049; }
+        .copy-btn.copied { background: #2196f3; }
+
+        .code-block {
+            background: #282c34;
+            color: #abb2bf;
+            padding: 15px 10px 15px 45px;
+            overflow-x: auto;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.8;
+            position: relative;
+            counter-reset: line;
+        }
+        .code-block code { display: block; }
+        .code-block .line {
+            counter-increment: line;
+            position: relative;
+        }
+        .code-block .line::before {
+            content: counter(line);
+            position: absolute;
+            left: -35px;
+            width: 25px;
+            text-align: right;
+            color: #4a5568;
+            font-size: 11px;
+            user-select: none;
+        }
+        .code-block .keyword { color: #c678dd; font-weight: 600; }
+        .code-block .string { color: #98c379; }
+        .code-block .number { color: #d19a66; }
+        .code-block .comment { color: #5c6370; font-style: italic; }
+        .code-block .function { color: #61afef; }
+        .code-block .class-name { color: #e5c07b; }
+        .code-block .decorator { color: #d19a66; }
+        .code-block .operator { color: #56b6c2; }
+        .code-block .boolean { color: #d19a66; }
+        .code-block .none { color: #abb2bf; font-style: italic; }
+        .code-block .self { color: #e06c75; }
+
+        /* 表格样式 */
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        th, td { padding: 14px 18px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%); color: white; font-weight: 600; }
+        tr:hover { background: #f5f5f5; }
+        tr:last-child td { border-bottom: none; }
+        table code {
+            background: linear-gradient(135deg, #f5f5f5 0%, #fafafa 100%);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 12px;
+            color: #c678dd;
+            border: 1px solid #e8e8e8;
+            white-space: nowrap;
+        }
+
+        /* 参数卡片 */
+        .param-card {
+            background: white;
+            border-left: 4px solid #1890ff;
+            padding: 18px 22px;
+            margin: 18px 0;
+            border-radius: 0 8px 8px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .param-card:hover {
+            transform: translateX(5px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        }
+        .param-card h4 { color: #1890ff; margin-bottom: 10px; font-size: 18px; }
+        .param-card .type { color: #888; font-size: 13px; }
+        .param-card .default { color: #52c41a; font-size: 12px; margin-left: 10px; }
+        .param-card p { margin: 8px 0; }
+
+        /* 提示框 */
+        .tip {
+            background: linear-gradient(135deg, #e6f7ff 0%, #f0faff 100%);
+            border: 1px solid #91d5ff;
+            padding: 18px 20px;
+            border-radius: 8px;
+            margin: 18px 0;
+        }
+        .tip.warning { background: linear-gradient(135deg, #fffbe6 0%, #fffef0 100%); border-color: #ffe58f; }
+        .tip.success { background: linear-gradient(135deg, #f6ffed 0%, #f0ffeb 100%); border-color: #b7eb8f; }
+        .tip h4 { margin-top: 0; display: flex; align-items: center; gap: 8px; }
+        .tip ul { margin-top: 12px; padding-left: 25px; }
+        .tip li { margin: 8px 0; line-height: 1.6; }
+        .tip code {
+            background: rgba(0,0,0,0.06);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+        }
+
+        /* 引用块 */
+        blockquote {
+            background: #fafafa;
+            border-left: 4px solid #1890ff;
+            padding: 15px 20px;
+            margin: 18px 0;
+            border-radius: 0 8px 8px 0;
+            color: #555;
+            font-style: italic;
+        }
+        blockquote code {
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+            color: #c678dd;
+        }
+
+        /* 列表优化 */
+        ul, ol { padding-left: 25px; }
+        li { margin: 8px 0; line-height: 1.7; }
+
+        /* 行内代码 */
+        p code, li code, td code {
+            background: linear-gradient(135deg, #f5f5f5 0%, #fafafa 100%);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            color: #c678dd;
+            border: 1px solid #e8e8e8;
+        }
+        p code, li code { white-space: nowrap; }
+
+        .section { background: white; padding: 25px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .container { padding: 0 10px; }
+            .flow-step { min-width: 120px; padding: 10px 15px; font-size: 12px; }
+            .code-block { padding: 15px 5px 15px 40px; font-size: 12px; }
+            table { font-size: 13px; }
+            th, td { padding: 10px 12px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎓 训练客户端 - 详细技术文档</h1>
+
+        <script>
+            // 复制代码功能
+            function copyCode(btn) {
+                const codeWrapper = btn.parentElement;
+                const codeBlock = codeWrapper.querySelector('.code-block code');
+                const code = codeBlock.textContent;
+
+                navigator.clipboard.writeText(code).then(() => {
+                    const originalText = btn.textContent;
+                    btn.textContent = '✓ 已复制';
+                    btn.classList.add('copied');
+                    setTimeout(() => {
+                        btn.textContent = originalText;
+                        btn.classList.remove('copied');
+                    }, 2000);
+                }).catch(() => {
+                    btn.textContent = '✗ 失败';
+                    setTimeout(() => {
+                        btn.textContent = '📋 复制';
+                    }, 2000);
+                });
+            }
+
+            // HTML 转义辅助函数
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            // 页面加载后初始化所有代码块
+            document.addEventListener('DOMContentLoaded', () => {
+                const codeBlocks = document.querySelectorAll('.code-block code');
+                codeBlocks.forEach((codeElement, index) => {
+                    const lines = codeElement.innerHTML.split('\n');
+                    if (lines.length > 1) {
+                        codeElement.innerHTML = lines.map(line =>
+                            `<span class="line">${line}</span>`
+                        ).join('');
+                    }
+                });
+            });
+        </script>
+
+        <!-- 系统架构 -->
+        <div class="section">
+            <h2>1. 系统架构</h2>
+            <div class="flow-container">
+                <div class="flow-row">
+                    <div class="flow-step">TrainingClient<br><small>客户端</small></div>
+                    <span class="arrow">⟶</span>
+                    <div class="flow-step info">TCP/IP<br><small>网络通信</small></div>
+                    <span class="arrow">⟶</span>
+                    <div class="flow-step warning">TrainingServer<br><small>训练服务器</small></div>
+                </div>
+                <div class="flow-row">
+                    <div class="flow-step success" style="margin-top: 20px;">InteractiveClient<br><small>交互式界面</small></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 完整工作流程 -->
+        <div class="section">
+            <h2>2. 完整工作流程</h2>
+            <div class="flow-container">
+                <div class="flow-row">
+                    <div class="flow-step">1. 创建客户端<br><small>TrainingClient()</small></div>
+                    <span class="arrow">⟶</span>
+                    <div class="flow-step info">2. 连接服务器<br><small>connect()</small></div>
+                    <span class="arrow">⟶</span>
+                    <div class="flow-step info">3. 验证连接<br><small>ping()</small></div>
+                </div>
+
+                <div class="arrow-down">⟱</div>
+
+                <div class="flow-row">
+                    <div class="flow-step success">6. 断开连接<br><small>disconnect()</small></div>
+                    <span class="arrow">⟵</span>
+                    <div class="flow-step warning">5. 监控进度<br><small>monitor_training()</small></div>
+                    <span class="arrow">⟵</span>
+                    <div class="flow-step warning">4. 创建并启动任务<br><small>create_task() + start_training()</small></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 消息协议 -->
+        <div class="section">
+            <h2>3. 消息协议详解</h2>
+            <div class="flow-container">
+                <div class="flow-row" style="display: flex; justify-content: center;">
+                    <div style="background: #4372c4; color: white; padding: 15px; min-width: 120px; margin: 5px; border-radius: 5px;">
+                        <strong>包头</strong><br>4 字节<br>0x55AA55AA
+                    </div>
+                    <div style="background: #92d050; color: white; padding: 15px; min-width: 120px; margin: 5px; border-radius: 5px;">
+                        <strong>长度</strong><br>4 字节<br>数据字节数
+                    </div>
+                    <div style="background: #ed7d31; color: white; padding: 15px; min-width: 120px; margin: 5px; border-radius: 5px;">
+                        <strong>校验和</strong><br>4 字节<br>完整性验证
+                    </div>
+                    <div style="background: #5b9bd5; color: white; padding: 15px; min-width: 200px; margin: 5px; border-radius: 5px;">
+                        <strong>数据</strong><br>N 字节<br>JSON 字符串
+                    </div>
+                </div>
+            </div>
+
+            <div class="tip">
+                <strong>📌 协议说明：</strong>
+                <ul style="margin-top: 10px; padding-left: 20px;">
+                    <li><strong>包头：</strong>固定值 0x55AA55AA，用于识别消息起始位置（大端序）</li>
+                    <li><strong>长度：</strong>后续数据部分的字节数（大端序）</li>
+                    <li><strong>校验和：</strong>数据部分所有字节累加和的低 32 位</li>
+                    <li><strong>数据：</strong>UTF-8 编码的 JSON 字符串</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- MessageProtocol 类 -->
+        <div class="section">
+            <h2>4. MessageProtocol 类</h2>
+
+            <div class="param-card">
+                <h4>calculate_checksum(data)</h4>
+                <p class="type">参数：data: bytes</p>
+                <p class="type">返回：int (32 位校验和)</p>
+                <p><strong>作用：</strong>计算数据的校验和，用于验证数据完整性</p>
+            </div>
+
+            <div class="code-wrapper">
+                <div class="code-header">
+                    <span class="code-language">Python</span>
+                    <button class="copy-btn" onclick="copyCode(this)">📋 复制</button>
+                </div>
+                <div class="code-block"><code><span class="keyword">def</span> <span class="function">calculate_checksum</span>(<span class="self">self</span>, data: bytes) -> int:
+    <span class="comment">"""计算校验和"""</span>
+    checksum = <span class="number">0</span>
+    <span class="keyword">for</span> byte <span class="keyword">in</span> data:
+        checksum = (checksum + byte) & <span class="number">0xFFFFFFFF</span>  <span class="comment"># 保持 32 位</span>
+    <span class="keyword">return</span> checksum</code></div>
+            </div>
+
+            <div class="param-card">
+                <h4>pack(message)</h4>
+                <p class="type">参数：message: str (JSON 字符串)</p>
+                <p class="type">返回：bytes (打包后的二进制数据)</p>
+                <p><strong>作用：</strong>将消息打包成协议格式（包头 + 长度 + 校验和 + 数据）</p>
+            </div>
+
+            <div class="code-wrapper">
+                <div class="code-header">
+                    <span class="code-language">Python</span>
+                    <button class="copy-btn" onclick="copyCode(this)">📋 复制</button>
+                </div>
+                <div class="code-block"><code><span class="keyword">def</span> <span class="function">pack</span>(message: str) -> bytes:
+    data = message.encode(<span class="string">'utf-8'</span>)
+    length = <span class="function">len</span>(data)
+    checksum = <span class="function">calculate_checksum</span>(data)
+
+    <span class="comment"># 包头：0x55AA55AA (4 字节，大端序)</span>
+    header = struct.pack(<span class="string">'&gt;I'</span>, <span class="number">0x55AA55AA</span>)
+
+    <span class="keyword">return</span> header + struct.pack(<span class="string">'&gt;I'</span>, length) + struct.pack(<span class="string">'&gt;I'</span>, checksum) + data</code></div>
+            </div>
+
+            <div class="param-card">
+                <h4>receive(conn, timeout)</h4>
+                <p class="type">参数：conn: socket.socket, timeout: float (默认 30)</p>
+                <p class="type">返回：str | None (解析后的消息)</p>
+                <p><strong>作用：</strong>从 Socket 连接接收并解析消息</p>
+            </div>
+
+            <div class="tip warning">
+                <strong>⚠️ 注意：</strong>receive() 方法会分块读取数据，确保读取完整的数据包后才返回。
+            </div>
+        </div>
+
+        <!-- TrainingClient 类 -->
+        <div class="section">
+            <h2>5. TrainingClient 类</h2>
+
+            <table>
+                <tr>
+                    <th>属性</th>
+                    <th>类型</th>
+                    <th>说明</th>
+                </tr>
+                <tr>
+                    <td>host</td>
+                    <td>str</td>
+                    <td>服务器地址（默认：127.0.0.1）</td>
+                </tr>
+                <tr>
+                    <td>port</td>
+                    <td>int</td>
+                    <td>服务器端口（默认：8888）</td>
+                </tr>
+                <tr>
+                    <td>socket</td>
+                    <td>socket.socket</td>
+                    <td>TCP Socket 对象</td>
+                </tr>
+                <tr>
+                    <td>connected</td>
+                    <td>bool</td>
+                    <td>连接状态</td>
+                </tr>
+                <tr>
+                    <td>request_counter</td>
+                    <td>int</td>
+                    <td>请求计数器（生成唯一 ID）</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- 核心方法 -->
+        <div class="section">
+            <h2>6. 核心方法详解</h2>
+
+            <div class="param-card">
+                <h4>connect()</h4>
+                <p class="type">返回：bool</p>
+                <p><strong>作用：</strong>连接到训练服务器</p>
+            </div>
+            <div class="code-wrapper">
+                <div class="code-header">
+                    <span class="code-language">Python</span>
+                    <button class="copy-btn" onclick="copyCode(this)">📋 复制</button>
+                </div>
+                <div class="code-block"><code><span class="keyword">def</span> <span class="function">connect</span>(<span class="self">self</span>) -> bool:
+    <span class="keyword">try</span>:
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.connect((self.host, self.port))
+        self.connected = <span class="boolean">True</span>
+        <span class="keyword">return</span> <span class="boolean">True</span>
+    <span class="keyword">except</span> Exception <span class="keyword">as</span> e:
+        <span class="function">print</span>(f<span class="string">"连接失败：{e}"</span>)
+        <span class="keyword">return</span> <span class="boolean">False</span></code></div>
+            </div>
+
+            <div class="param-card">
+                <h4>send_request(command, data)</h4>
+                <p class="type">参数：command: str, data: Dict (可选)</p>
+                <p class="type">返回：Dict | None</p>
+                <p><strong>作用：</strong>发送请求并获取响应（所有方法的基础）</p>
+            </div>
+
+            <div class="tip">
+                <strong>📌 请求结构：</strong>
+                <div class="code-wrapper" style="margin-top: 10px;">
+                    <div class="code-header">
+                        <span class="code-language">JSON</span>
+                    </div>
+                    <div class="code-block"><code>{
+    <span class="string">"command"</span>: <span class="string">"ping"</span>,           <span class="comment"># 命令类型</span>
+    <span class="string">"request_id"</span>: <span class="string">"1234567890_1"</span>, <span class="comment"># 唯一请求 ID</span>
+    <span class="string">"timestamp"</span>: <span class="number">1234567890.123</span>,  <span class="comment"># 时间戳</span>
+    <span class="string">"task_id"</span>: <span class="string">"xxx"</span>           <span class="comment"># 其他参数（可选）</span>
+}</code></div>
+                </div>
+            </div>
+
+            <div class="param-card">
+                <h4>create_task(params)</h4>
+                <p class="type">参数：params: Dict</p>
+                <p class="type">返回：task_id (str) | None</p>
+                <p><strong>作用：</strong>创建新的训练任务，返回任务 ID</p>
+            </div>
+
+            <div class="param-card">
+                <h4>start_training(task_id)</h4>
+                <p class="type">参数：task_id: str</p>
+                <p class="type">返回：bool</p>
+                <p><strong>作用：</strong>启动指定的训练任务</p>
+            </div>
+
+            <div class="param-card">
+                <h4>get_task_status(task_id)</h4>
+                <p class="type">参数：task_id: str</p>
+                <p class="type">返回：Dict | None</p>
+                <p><strong>作用：</strong>获取任务状态（status, progress 等）</p>
+            </div>
+
+            <div class="param-card">
+                <h4>get_progress(task_id)</h4>
+                <p class="type">参数：task_id: str</p>
+                <p class="type">返回：Dict | None</p>
+                <p><strong>作用：</strong>获取训练进度详情（epoch, loss, accuracy 等）</p>
+            </div>
+
+            <div class="param-card">
+                <h4>monitor_training(task_id, poll_interval)</h4>
+                <p class="type">参数：task_id: str, poll_interval: float (默认 2.0)</p>
+                <p><strong>作用：</strong>持续监控训练进度直到完成</p>
+            </div>
+        </div>
+
+        <!-- create_task 参数详解 -->
+        <div class="section">
+            <h2>7. create_task 参数详解</h2>
+
+            <table>
+                <tr>
+                    <th>参数</th>
+                    <th>类型</th>
+                    <th>默认值</th>
+                    <th>作用</th>
+                    <th>建议</th>
+                </tr>
+                <tr>
+                    <td>model_type</td>
+                    <td>str</td>
+                    <td>"detect"</td>
+                    <td>模型类型（detect/segment/classify）</td>
+                    <td>根据任务选择</td>
+                </tr>
+                <tr>
+                    <td>image_size</td>
+                    <td>int</td>
+                    <td>640</td>
+                    <td>输入图像尺寸（像素）</td>
+                    <td>320-1280</td>
+                </tr>
+                <tr>
+                    <td>dataset</td>
+                    <td>str</td>
+                    <td>"data"</td>
+                    <td>训练数据集路径</td>
+                    <td>确保路径存在</td>
+                </tr>
+                <tr>
+                    <td>epochs</td>
+                    <td>int</td>
+                    <td>50</td>
+                    <td>训练轮次数</td>
+                    <td>30-100</td>
+                </tr>
+                <tr>
+                    <td>batch_size</td>
+                    <td>int</td>
+                    <td>32</td>
+                    <td>每批次样本数</td>
+                    <td>16/32/64</td>
+                </tr>
+                <tr>
+                    <td>learning_rate</td>
+                    <td>float</td>
+                    <td>0.001</td>
+                    <td>学习率</td>
+                    <td>0.001-0.01</td>
+                </tr>
+                <tr>
+                    <td>trainset_ratio</td>
+                    <td>float</td>
+                    <td>0.9</td>
+                    <td>训练集占比</td>
+                    <td>0.8-0.95</td>
+                </tr>
+            </table>
+
+            <div class="tip warning">
+                <strong>⚠️ 参数影响：</strong>
+                <ul style="margin-top: 10px; padding-left: 20px;">
+                    <li><strong>epochs 太少：</strong>模型可能未充分学习（欠拟合）</li>
+                    <li><strong>epochs 太多：</strong>可能过拟合，训练时间增长</li>
+                    <li><strong>batch_size 太小：</strong>训练不稳定，但内存占用少</li>
+                    <li><strong>learning_rate 太大：</strong>可能不收敛或震荡</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 完整示例 -->
+        <div class="section">
+            <h2>8. 完整使用示例</h2>
+
+            <div class="code-wrapper">
+                <div class="code-header">
+                    <span class="code-language">Python</span>
+                    <button class="copy-btn" onclick="copyCode(this)">📋 复制</button>
+                </div>
+                <div class="code-block"><code><span class="keyword">from</span> training_client <span class="keyword">import</span> TrainingClient
+<span class="keyword">import</span> time
+
+<span class="comment"># ========== 1. 创建客户端 ==========</span>
+client = TrainingClient(host=<span class="string">"127.0.0.1"</span>, port=<span class="number">8888</span>)
+
+<span class="comment"># ========== 2. 连接服务器 ==========</span>
+<span class="keyword">if not</span> client.connect():
+    <span class="function">print</span>(<span class="string">"❌ 连接失败"</span>)
+    exit()
+
+<span class="comment"># ========== 3. 验证连接 ==========</span>
+<span class="keyword">if not</span> client.ping():
+    <span class="function">print</span>(<span class="string">"❌ 服务器无响应"</span>)
+    client.disconnect()
+    exit()
+
+<span class="comment"># ========== 4. 创建训练任务 ==========</span>
+params = {
+    <span class="string">"model_type"</span>: <span class="string">"detect"</span>,
+    <span class="string">"image_size"</span>: <span class="number">640</span>,
+    <span class="string">"dataset"</span>: <span class="string">"data/my_dataset"</span>,
+    <span class="string">"epochs"</span>: <span class="number">50</span>,
+    <span class="string">"batch_size"</span>: <span class="number">32</span>,
+    <span class="string">"learning_rate"</span>: <span class="number">0.001</span>,
+    <span class="string">"trainset_ratio"</span>: <span class="number">0.9</span>
+}
+task_id = client.create_task(params)
+
+<span class="keyword">if not</span> task_id:
+    <span class="function">print</span>(<span class="string">"❌ 创建任务失败"</span>)
+    client.disconnect()
+    exit()
+
+<span class="function">print</span>(f<span class="string">"✅ 任务创建成功：{task_id}"</span>)
+
+<span class="comment"># ========== 5. 启动训练 ==========</span>
+<span class="keyword">if</span> client.start_training(task_id):
+    <span class="function">print</span>(<span class="string">"✅ 训练已启动"</span>)
+
+<span class="comment"># ========== 6. 监控进度 ==========</span>
+<span class="function">print</span>(<span class="string">"开始监控训练进度..."</span>)
+<span class="keyword">try</span>:
+    <span class="keyword">while True</span>:
+        status = client.get_task_status(task_id)
+        progress = client.get_progress(task_id)
+
+        <span class="keyword">if</span> progress <span class="keyword">and</span> <span class="string">"progress"</span> <span class="keyword">in</span> progress:
+            p = progress[<span class="string">"progress"</span>]
+            epoch = p.get(<span class="string">"epoch"</span>, <span class="number">0</span>)
+            total = p.get(<span class="string">"total_epochs"</span>, <span class="number">1</span>)
+            loss = p.get(<span class="string">"loss"</span>, <span class="number">0</span>)
+            accuracy = p.get(<span class="string">"accuracy"</span>, <span class="number">0</span>)
+
+            <span class="function">print</span>(f<span class="string">"轮次 {epoch}/{total} | 损失：{loss:.4f} | 准确率：{accuracy:.4f}"</span>)
+
+            <span class="comment"># 检查是否完成</span>
+            <span class="keyword">if</span> epoch >= total:
+                <span class="function">print</span>(<span class="string">"✅ 训练完成!"</span>)
+                <span class="keyword">break</span>
+
+        time.sleep(<span class="number">2</span>)  <span class="comment"># 每 2 秒查询一次</span>
+
+<span class="keyword">except</span> KeyboardInterrupt:
+    <span class="function">print</span>(<span class="string">"\n⚠️ 监控被用户中断"</span>)
+
+<span class="comment"># ========== 7. 断开连接 ==========</span>
+client.disconnect()
+<span class="function">print</span>(<span class="string">"✅ 已断开连接"</span>)</code></div>
+            </div>
+        </div>
+
+        <!-- 响应码 -->
+        <div class="section">
+            <h2>9. 常见响应码</h2>
+            <table>
+                <tr>
+                    <th>响应码</th>
+                    <th>含义</th>
+                    <th>处理建议</th>
+                </tr>
+                <tr>
+                    <td style="color: #52c41a; font-weight: bold;">100</td>
+                    <td>成功</td>
+                    <td>请求正常处理</td>
+                </tr>
+                <tr>
+                    <td style="color: #1890ff; font-weight: bold;">200</td>
+                    <td>部分成功</td>
+                    <td>检查返回的 message 字段</td>
+                </tr>
+                <tr>
+                    <td style="color: #fa8c16; font-weight: bold;">400</td>
+                    <td>请求错误</td>
+                    <td>检查参数格式和内容</td>
+                </tr>
+                <tr>
+                    <td style="color: #ff4d4f; font-weight: bold;">404</td>
+                    <td>未找到</td>
+                    <td>任务 ID 不存在</td>
+                </tr>
+                <tr>
+                    <td style="color: #ff4d4f; font-weight: bold;">500</td>
+                    <td>服务器错误</td>
+                    <td>联系服务器管理员</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- 消息传递原理 -->
+        <div class="section">
+            <h2>10. 消息传递原理</h2>
+            <div class="flow-container">
+                <div class="code-wrapper">
+                    <div class="code-header">
+                        <span class="code-language">消息流程</span>
+                    </div>
+                    <div class="code-block"><code>┌─────────────────────────────────────────────────────────────────┐
+│                      客户端 → 服务器 请求                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Python 字典 → json.dumps() → JSON 字符串                         │
+│              ↓ MessageProtocol.pack()                            │
+│  [Header:0x55AA55AA][Length][Checksum][Data]                     │
+│              ↓ socket.sendall()                                  │
+│  TCP 网络传输                                                      │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                      服务器 → 客户端 响应                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  TCP 网络接收 → 解析包头 → 验证 Checksum → 读取 Data              │
+│              ↓ json.loads()                                      │
+│  Python 字典 {"code": 100, "data": {...}}                         │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘</code></div>
+                </div>
+            </div>
+
+            <div class="tip success">
+                <strong>✅ 关键点：</strong>
+                <ul style="margin-top: 10px; padding-left: 20px;">
+                    <li>所有通信都是基于 TCP 的同步请求 - 响应模式</li>
+                    <li>每个请求都有唯一的 request_id（时间戳 + 计数器）</li>
+                    <li>包头用于识别消息边界，校验和用于验证数据完整性</li>
+                    <li>超时处理：connect 默认超时，receive 可设置 timeout</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

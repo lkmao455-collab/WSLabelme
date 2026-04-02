@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(unix2dos main.py.bak)",
+      "Bash(dos2unix main.py)",
+      "Bash(sed -i 's/\\\\r$//' main.py)",
+      "Bash(python:*)",
+      "Bash(chcp 65001)",
+      "Bash(mv \"训练客户端技术详解.pptx\" \"训练客户端技术详解_原备份.pptx\")",
+      "Bash(mv \"训练客户端技术详解_优化版.pptx\" \"训练客户端技术详解.pptx\")",
+      "Bash(rm optimize_ppt.py)",
+      "Bash(rm -f \"训练客户端技术详解_原备份.pptx\")",
+      "Bash(ls -la *.pptx)",
+      "Bash(ls -la E:/shangweiji/WSLabelme/labelme/labelme/*.py)",
+      "Bash(labelme.venvScriptspython -c \":*)",
+      "Bash(labelme/.venv/Scripts/python -c \":*)",
+      "Bash(./labelme/.venv/Scripts/python -c \":*)",
+      "Bash(./labelme/.venv/Scripts/python.exe -c \":*)",
+      "Bash(E:/shangweiji/WSLabelme/labelme/labelme/.venv/Scripts/python.exe -c \":*)"
+    ]
+  }
+}

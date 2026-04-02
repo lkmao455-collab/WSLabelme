@@ -1,0 +1,15 @@
+# Labelme Python Dependencies
+# Generated from pyproject.toml
+
+# Core dependencies
+imgviz
+loguru
+matplotlib
+natsort>=7.1.0
+numpy
+osam>=0.2.3
+pillow>=2.8
+pyqt5>=5.14.0
+pyyaml
+scikit-image
+paramiko
