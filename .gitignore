@@ -1,6 +1,6 @@
 /.cache/
 /.pytest_cache/
-
+/.claude/
 /build/
 /dist/
 /*.egg-info/
