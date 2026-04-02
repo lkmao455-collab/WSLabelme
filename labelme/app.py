@@ -2900,7 +2900,7 @@ class MainWindow(QtWidgets.QMainWindow):
                             folder_path = osp.join(project_root, folder_path)
                         default_folder = folder_path
         except Exception as e:
-            logger.warning("Failed to load config file: %s", e)
+            logger.warning("Failed to load config file: {}", e)
         
         return default_folder
 
@@ -2935,13 +2935,13 @@ class MainWindow(QtWidgets.QMainWindow):
                 json.dump(config, f, indent=2, ensure_ascii=False)
             
             self.defaultImagesFolder = folder_path
-            logger.info("Saved default images folder to config: %s", folder_path)
+            logger.info("Saved default images folder to config: {}", folder_path)
             
             # Re-add watcher
             if osp.exists(config_file):
                 self.fileWatcher.addPath(config_file)
         except Exception as e:
-            logger.warning("Failed to save config file: %s", e)
+            logger.warning("Failed to save config file: {}", e)
     
     def _setupFileWatcher(self):
         """Setup file system watcher for config file and images folder."""
@@ -2951,19 +2951,19 @@ class MainWindow(QtWidgets.QMainWindow):
         # Watch config file. If it doesn't exist, watch its parent directory.
         if osp.exists(config_file):
             self.fileWatcher.addPath(config_file)
-            logger.info("Watching config file: %s", config_file)
+            logger.info("Watching config file: {}", config_file)
         else:
             # If the file doesn't exist, watch the directory it should be in.
             # This allows us to detect when it's created.
             config_dir = osp.dirname(config_file)
             if osp.exists(config_dir):
                 self.fileWatcher.addPath(config_dir)
-                logger.info("Config file not found. Watching directory: %s", config_dir)
+                logger.info("Config file not found. Watching directory: {}", config_dir)
         
         # Watch images folder if it exists
         if self.defaultImagesFolder and osp.exists(self.defaultImagesFolder) and osp.isdir(self.defaultImagesFolder):
             self.fileWatcher.addPath(self.defaultImagesFolder)
-            logger.info("Watching images folder: %s", self.defaultImagesFolder)
+            logger.info("Watching images folder: {}", self.defaultImagesFolder)
         
         # Connect signals
         self.fileWatcher.fileChanged.connect(self._onConfigFileChanged)
@@ -2971,7 +2971,7 @@ class MainWindow(QtWidgets.QMainWindow):
     
     def _onConfigFileChanged(self, path):
         """Handle config file changes."""
-        logger.info("Config file changed: %s", path)
+        logger.info("Config file changed: {}", path)
         
         # Reload config
         new_folder = self._loadDefaultImagesFolder()
@@ -2992,9 +2992,9 @@ class MainWindow(QtWidgets.QMainWindow):
             if new_folder and osp.exists(new_folder) and osp.isdir(new_folder):
                 try:
                     self.fileWatcher.addPath(new_folder)
-                    logger.info("Now watching new images folder: %s", new_folder)
+                    logger.info("Now watching new images folder: {}", new_folder)
                 except Exception as e:
-                    logger.warning("Failed to watch new folder: %s", e)
+                    logger.warning("Failed to watch new folder: {}", e)
             
             # Reload images from new folder if it's the current directory
             if self.lastOpenDir == self.defaultImagesFolder or (
@@ -3011,7 +3011,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Case 1: The config directory changed, check if the config file was created.
         if path == config_dir and osp.exists(config_file):
-            logger.info("Config file created: %s", config_file)
+            logger.info("Config file created: {}", config_file)
             # Stop watching the directory and start watching the file.
             self.fileWatcher.removePath(config_dir)
             self.fileWatcher.addPath(config_file)
@@ -3021,7 +3021,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Case 2: The images folder changed.
         if path == self.defaultImagesFolder or path == self.lastOpenDir:
-            logger.info("Images folder changed: %s", path)
+            logger.info("Images folder changed: {}", path)
             # Use a small delay to avoid multiple rapid updates
             QtCore.QTimer.singleShot(500, functools.partial(self._refreshFileList, path))
     
@@ -3032,7 +3032,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Only refresh if this is the current directory
         if folder_path == self.lastOpenDir:
-            logger.info("Refreshing file list for: %s", folder_path)
+            logger.info("Refreshing file list for: {}", folder_path)
 
             # Get list of files before refresh to find the new one
             old_files = set(self.imageList)
@@ -3052,11 +3052,11 @@ class MainWindow(QtWidgets.QMainWindow):
                     sorted_files = sorted(self.imageList, key=osp.getmtime, reverse=True)
                     newest_file_path = sorted_files[0]
                 except (OSError, IndexError) as e:
-                    logger.error("Could not determine newest file: %s", e)
+                    logger.error("Could not determine newest file: {}", e)
                     return
 
             if newest_file_path:
-                logger.info("Newest file detected: %s", newest_file_path)
+                logger.info("Newest file detected: {}", newest_file_path)
                 # 缩略图列表不支持 findItems，直接使用 setCurrentFile
                 if newest_file_path in self.fileListWidget.file_paths:
                     self.fileListWidget.setCurrentFile(newest_file_path)
@@ -3199,9 +3199,9 @@ class MainWindow(QtWidgets.QMainWindow):
             if dirpath not in watched_dirs:
                 try:
                     self.fileWatcher.addPath(dirpath)
-                    logger.info("Now watching folder: %s", dirpath)
+                    logger.info("Now watching folder: {}", dirpath)
                 except Exception as e:
-                    logger.warning("Failed to watch folder: %s", e)
+                    logger.warning("Failed to watch folder: {}", e)
 
         filenames = self.scanAllImages(dirpath)
         if pattern:

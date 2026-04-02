@@ -139,7 +139,7 @@ class TrainingDockWidget(QtWidgets.QWidget):
                 except (json.JSONDecodeError, IOError):
                     pass
         except Exception as e:
-            print(f"读取默认数据集路径失败：{e}")
+            logger.warning(f"读取默认数据集路径失败：{e}")
 
         return None
 
@@ -162,7 +162,7 @@ class TrainingDockWidget(QtWidgets.QWidget):
             if folder:
                 self.dataset_edit.setText(folder)
         except Exception as e:
-            print(f"浏览数据集异常：{e}")
+            logger.warning(f"浏览数据集异常：{e}")
 
     def _setup_ui(self):
         # 创建主布局
@@ -274,7 +274,7 @@ class TrainingDockWidget(QtWidgets.QWidget):
         # 图像尺寸
         self.image_size_combo = QtWidgets.QComboBox()
         self.image_size_combo.addItems(["320", "416", "512", "640", "768", "1024"])
-        self.image_size_combo.setCurrentText("640")
+        self.image_size_combo.setCurrentText("320")
         self.param_group.addRow("图像尺寸：", self.image_size_combo)
 
         # 训练轮次
@@ -414,18 +414,28 @@ class TrainingDockWidget(QtWidgets.QWidget):
         Args:
             manager: TrainingClientManager 实例
         """
+        # 检查 manager 是否为 None，避免空指针异常
+        if manager is None:
+            logger.warning("[TrainingDock] 管理器为None，跳过设置")
+            self._manager = None
+            return
+        
         self._manager = manager
         logger.info(f"[TrainingDock] 设置训练管理器: {type(manager).__name__}")
 
         # 连接管理器信号
-        manager.connected.connect(self._on_manager_connected)
-        manager.connection_error.connect(self._on_connection_error)
-        manager.task_created.connect(self._on_task_created)
-        manager.task_creation_failed.connect(self._on_task_creation_failed)
-        manager.training_started.connect(self._on_training_started)
-        manager.training_stopped.connect(self._on_training_stopped)
-        manager.status_changed.connect(self._on_status_changed)
-        logger.info("[TrainingDock] 管理器信号连接完成")
+        try:
+            manager.connected.connect(self._on_manager_connected)
+            manager.connection_error.connect(self._on_connection_error)
+            manager.task_created.connect(self._on_task_created)
+            manager.task_creation_failed.connect(self._on_task_creation_failed)
+            manager.training_started.connect(self._on_training_started)
+            manager.training_stopped.connect(self._on_training_stopped)
+            manager.status_changed.connect(self._on_status_changed)
+            logger.info("[TrainingDock] 管理器信号连接完成")
+        except AttributeError as e:
+            logger.error(f"[TrainingDock] 管理器信号连接失败，缺少必要属性: {e}")
+            self._manager = None
 
     def _on_manager_connected(self, success):
         """管理器连接状态变化"""
@@ -477,14 +487,14 @@ class TrainingDockWidget(QtWidgets.QWidget):
         try:
             self.start_training_requested.emit()
         except Exception as e:
-            print(f"启动训练异常：{e}")
+            logger.error(f"启动训练异常：{e}")
 
     def _on_stop_clicked(self):
         """停止训练按钮点击"""
         try:
             self.stop_training_requested.emit()
         except Exception as e:
-            print(f"停止训练异常：{e}")
+            logger.error(f"停止训练异常：{e}")
 
     def _on_server_connect_clicked(self):
         """服务器连接按钮点击"""
@@ -507,10 +517,12 @@ class TrainingDockWidget(QtWidgets.QWidget):
         """任务创建成功"""
         try:
             if task_id:
-                self.training_status_label.setText(f"任务已创建：{task_id[:8]}...")
+                # 确保 task_id 是字符串类型，避免切片异常
+                task_id_str = str(task_id) if not isinstance(task_id, str) else task_id
+                self.training_status_label.setText(f"任务已创建：{task_id_str[:8]}...")
                 self.start_btn.setEnabled(True)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(f"[TrainingDock] 处理任务创建成功异常: {e}")
 
     def _on_training_started(self, task_id):
         """训练启动成功"""
@@ -519,8 +531,8 @@ class TrainingDockWidget(QtWidgets.QWidget):
                 self.training_status_label.setText("训练中...")
                 self.start_btn.setEnabled(False)
                 self.stop_btn.setEnabled(True)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(f"[TrainingDock] 处理训练启动成功异常: {e}")
 
     def _on_training_stopped(self, task_id):
         """训练停止成功"""
@@ -529,25 +541,33 @@ class TrainingDockWidget(QtWidgets.QWidget):
                 self.training_status_label.setText("训练已停止")
                 self.start_btn.setEnabled(True)
                 self.stop_btn.setEnabled(False)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(f"[TrainingDock] 处理训练停止成功异常: {e}")
 
     def _on_status_changed(self, task_id, status_data):
         """任务状态变化"""
         try:
+            # 检查 status_data 是否为 None，避免空指针异常
+            if status_data is None:
+                logger.warning(f"[TrainingDock] 任务状态变化收到 None status_data")
+                return
+            
             status = status_data.get("status", "unknown")
-            logger.info(f"[TrainingDock] 任务 {task_id[:8]}... 状态变化: {status}")
+            
+            # 确保 task_id 是字符串类型，避免切片异常
+            task_id_str = str(task_id) if task_id and not isinstance(task_id, str) else (task_id or "unknown")
+            logger.info(f"[TrainingDock] 任务 {task_id_str[:8]}... 状态变化: {status}")
             
             if status == "completed":
                 self.training_status_label.setText("训练已完成")
                 self.start_btn.setEnabled(True)
                 self.stop_btn.setEnabled(False)
-                logger.info(f"[TrainingDock] 训练完成: {task_id}")
+                logger.info(f"[TrainingDock] 训练完成: {task_id_str}")
             elif status == "failed":
                 self.training_status_label.setText("训练失败")
                 self.start_btn.setEnabled(True)
                 self.stop_btn.setEnabled(False)
-                logger.error(f"[TrainingDock] 训练失败: {task_id}")
+                logger.error(f"[TrainingDock] 训练失败: {task_id_str}")
             elif status == "stopped":
                 # 已由 _on_training_stopped 处理
                 pass
@@ -612,7 +632,7 @@ class TrainingDockWidget(QtWidgets.QWidget):
 
             return params
         except Exception as e:
-            print(f"获取训练参数异常：{e}")
+            logger.error(f"获取训练参数异常：{e}")
             # 返回默认参数
             return {
                 "model_type": "detect",
@@ -711,7 +731,10 @@ class TrainingDockWidget(QtWidgets.QWidget):
         """清理资源"""
         try:
             if self._manager:
-                self._manager.cleanup()
+                try:
+                    self._manager.cleanup()
+                except Exception as e:
+                    logger.warning(f"[TrainingDock] 管理器清理异常: {e}")
             self._manager = None
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(f"[TrainingDock] 清理资源异常: {e}")

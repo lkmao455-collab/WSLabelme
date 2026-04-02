@@ -303,7 +303,7 @@ def main():
     )
 
     if reset_config:
-        logger.info("Resetting Qt config: %s" % win.settings.fileName())
+        logger.info("Resetting Qt config: {}", win.settings.fileName())
         win.settings.clear()
         sys.exit(0)
 

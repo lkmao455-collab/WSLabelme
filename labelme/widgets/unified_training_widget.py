@@ -283,7 +283,7 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
         # 图像尺寸
         self.image_size_combo = QtWidgets.QComboBox()
         self.image_size_combo.addItems(["320", "416", "512", "640", "768", "1024"])
-        self.image_size_combo.setCurrentText("640")
+        self.image_size_combo.setCurrentText("320")
         self.param_group.addRow("图像尺寸：", self.image_size_combo)
 
         # 训练轮次

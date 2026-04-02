@@ -50,6 +50,12 @@ class TcpClientThread(QtCore.QThread):
         if not self._config:
             self.load_config()
         
+        # 防止配置加载失败导致 NoneType 错误
+        if not self._config:
+            logger.error("TCP配置加载失败")
+            self.connection_status_changed.emit(False, "配置加载失败")
+            return False
+        
         host = self._config.get("host", "127.0.0.1")
         port = self._config.get("port", 10012)
         
@@ -58,7 +64,7 @@ class TcpClientThread(QtCore.QThread):
             if self._socket:
                 try:
                     self._socket.close()
-                except:
+                except Exception:
                     pass
                 self._socket = None
             
@@ -108,11 +114,16 @@ class TcpClientThread(QtCore.QThread):
         if not self._socket or not self._connected:
             return False
         
+        # 防止 message 为 None
+        if message is None:
+            logger.warning("TCP消息为None，跳过发送")
+            return False
+        
         try:
             # 将消息编码为UTF-8字节并发送
             data = message.encode('utf-8')
             self._socket.sendall(data)
-            logger.debug(f"TCP客户端已发送消息: {message}")
+            # logger.debug(f"TCP客户端已发送消息: {message}")
             return True
         except socket.error as e:
             logger.error(f"发送TCP消息失败: {e}")
@@ -130,7 +141,7 @@ class TcpClientThread(QtCore.QThread):
             try:
                 self._socket.close()
                 logger.info("TCP客户端已断开连接")
-            except:
+            except Exception:
                 pass
             finally:
                 self._socket = None
@@ -157,11 +168,20 @@ class TcpClientThread(QtCore.QThread):
         if not self._config:
             self.load_config()
         
-        host = self._config.get("host", "127.0.0.1")
-        port = self._config.get("port", 10012)
-        message = self._config.get("message", "labelme")
-        interval = self._config.get("interval", 2)
-        reconnect_interval = self._config.get("reconnect_interval", 5)
+        # 防止配置加载失败导致 NoneType 错误
+        if not self._config:
+            logger.error("TCP配置加载失败，使用默认配置")
+            host = "127.0.0.1"
+            port = 10012
+            message = "labelme"
+            interval = 2
+            reconnect_interval = 5
+        else:
+            host = self._config.get("host", "127.0.0.1")
+            port = self._config.get("port", 10012)
+            message = self._config.get("message", "labelme")
+            interval = self._config.get("interval", 2)
+            reconnect_interval = self._config.get("reconnect_interval", 5)
         
         logger.info(f"TCP客户端线程启动: {host}:{port}, 消息: {message}, 间隔: {interval}秒")
         
