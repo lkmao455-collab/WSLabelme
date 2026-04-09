@@ -13,3 +13,5 @@ pyqt5>=5.14.0
 pyyaml
 scikit-image
 paramiko
+PyInstaller
+ipython

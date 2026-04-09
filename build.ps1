@@ -203,8 +203,11 @@ if ($exePath -and (Test-Path $exePath)) {
     # Wait for build process to complete
     $buildProcess.WaitForExit()
     
-    if ($buildProcess.ExitCode -ne 0) {
-        Write-Host "Build failed with exit code: $($buildProcess.ExitCode)"
+    $exitCode = $buildProcess.ExitCode
+    Write-Host "PyInstaller exit code: $exitCode"
+    
+    if ($exitCode -ne 0 -and $exitCode -ne $null) {
+        Write-Host "Build failed with exit code: $exitCode"
         exit 1
     }
     

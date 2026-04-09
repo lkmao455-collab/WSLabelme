@@ -330,21 +330,24 @@ class MainWindow(QtWidgets.QMainWindow):
         deploy_features = QtWidgets.QDockWidget.DockWidgetFloatable | QtWidgets.QDockWidget.DockWidgetMovable
         self.deploy_dock.setFeatures(deploy_features)
 
+        # 添加训练曲线 dock 和文件列表 dock 到底部区域（默认显示）
+        # 顺序：损失曲线 | 文件列表 | 准确率曲线
+        self.addDockWidget(Qt.BottomDockWidgetArea, self.loss_curve_dock)
+        self.addDockWidget(Qt.BottomDockWidgetArea, self.file_dock)
+        self.addDockWidget(Qt.BottomDockWidgetArea, self.acc_curve_dock)
+
+        # 使用 splitDockWidget 水平分割三个 dock（并排显示）
+        self.splitDockWidget(self.loss_curve_dock, self.file_dock, Qt.Horizontal)
+        self.splitDockWidget(self.file_dock, self.acc_curve_dock, Qt.Horizontal)
+
+        # 添加其他 dock 到右侧区域
         self.addDockWidget(Qt.RightDockWidgetArea, self.flag_dock)
         self.addDockWidget(Qt.RightDockWidgetArea, self.label_dock)
         self.addDockWidget(Qt.RightDockWidgetArea, self.shape_dock)
-        self.addDockWidget(Qt.RightDockWidgetArea, self.file_dock)
         self.addDockWidget(Qt.RightDockWidgetArea, self.training_dock)
-        
+
         # 添加模型部署 dock 到右侧区域
         self.addDockWidget(Qt.RightDockWidgetArea, self.deploy_dock)
-        
-        # 添加训练曲线 dock 到底部区域（默认显示）
-        self.addDockWidget(Qt.BottomDockWidgetArea, self.loss_curve_dock)
-        self.addDockWidget(Qt.BottomDockWidgetArea, self.acc_curve_dock)
-        
-        # 使用 splitDockWidget 水平分割两个曲线 dock（左右并排显示）
-        self.splitDockWidget(self.loss_curve_dock, self.acc_curve_dock, Qt.Horizontal)
         
         # 确保曲线 dock 显示在最前面
         self.loss_curve_dock.show()
@@ -481,7 +484,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.tr("Create Rectangle"),
             lambda: self.toggleDrawMode(False, createMode="rectangle"),
             shortcuts["create_rectangle"],
-            "objects",
+            "rectangle",
             self.tr("Start drawing rectangles"),
             enabled=False,
         )
@@ -574,6 +577,30 @@ class MainWindow(QtWidgets.QMainWindow):
             shortcuts["duplicate_polygon"],
             "copy",
             self.tr("Create a duplicate of the selected polygons"),
+            enabled=False,
+        )
+        editRectangleMode = action(
+            self.tr("编辑矩形"),
+            self.setEditMode,
+            shortcuts["edit_rectangle"],
+            "edit_rectangle",
+            self.tr("移动和编辑选中的矩形"),
+            enabled=False,
+        )
+        duplicateRectangle = action(
+            self.tr("复制矩形"),
+            self.duplicateSelectedShape,
+            shortcuts["duplicate_rectangle"],
+            "copy_rectangle",
+            self.tr("创建选中矩形的副本"),
+            enabled=False,
+        )
+        deleteRectangle = action(
+            self.tr("删除矩形"),
+            self.deleteSelectedShape,
+            shortcuts["delete_rectangle"],
+            "delete_rectangle",
+            self.tr("删除选中的矩形"),
             enabled=False,
         )
         copy = action(
@@ -738,6 +765,14 @@ class MainWindow(QtWidgets.QMainWindow):
             self.tr("Adjust brightness and contrast"),
             enabled=False,
         )
+        formatConvert = action(
+            self.tr("&格式转换"),
+            self.formatConvert,
+            None,
+            "save-as",
+            self.tr("将 Labelme JSON 转换为 COCO/YOLO/VOC 格式"),
+            enabled=True,
+        )
         # Group zoom controls into a list for easier toggling.
         zoomActions = (
             self.zoomWidget,
@@ -795,6 +830,9 @@ class MainWindow(QtWidgets.QMainWindow):
             deleteFile=deleteFile,
             toggleKeepPrevMode=toggle_keep_prev_mode,
             delete=delete,
+            editRectangleMode=editRectangleMode,
+            duplicateRectangle=duplicateRectangle,
+            deleteRectangle=deleteRectangle,
             edit=edit,
             duplicate=duplicate,
             copy=copy,
@@ -819,6 +857,7 @@ class MainWindow(QtWidgets.QMainWindow):
             fitWindow=fitWindow,
             fitWidth=fitWidth,
             brightnessContrast=brightnessContrast,
+            formatConvert=formatConvert,
             zoomActions=zoomActions,
             openNextImg=openNextImg,
             openPrevImg=openPrevImg,
@@ -870,6 +909,9 @@ class MainWindow(QtWidgets.QMainWindow):
                 createAiPolygonMode,
                 createAiMaskMode,
                 editMode,
+                editRectangleMode,
+                duplicateRectangle,
+                deleteRectangle,
                 brightnessContrast,
             ),
             onShapesPresent=(saveAs, hideAll, showAll, toggleAll),
@@ -899,6 +941,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 saveAuto,
                 changeOutputDir,
                 saveWithImageData,
+                formatConvert,
                 close,
                 deleteFile,
                 None,
@@ -1010,8 +1053,13 @@ class MainWindow(QtWidgets.QMainWindow):
             editMode,
             duplicate,
             delete,
+            createRectangleMode,
+            editRectangleMode,
+            duplicateRectangle,
+            deleteRectangle,
             undo,
             brightnessContrast,
+            formatConvert,
             None,
             fitWindow,
             zoom,
@@ -1190,7 +1238,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     # ==================== Training Dock Signal Handlers ====================
 
-    def _normalize_training_dataset_path(self, dataset_path):
+    def _normalize_training_dataset_path(self, dataset_path, skip_check=False):
         """校验并归一化训练数据集目录。"""
         dataset_path = (dataset_path or "").strip()
         if not dataset_path:
@@ -1199,6 +1247,10 @@ class MainWindow(QtWidgets.QMainWindow):
         normalized_path = osp.abspath(osp.normpath(dataset_path))
         if not osp.isdir(normalized_path):
             return False, f"数据集目录不存在：{normalized_path}", None
+
+        # 如果用户选择跳过检测，直接返回路径
+        if skip_check:
+            return True, "", normalized_path
 
         candidate_dirs = [
             normalized_path,
@@ -1238,7 +1290,8 @@ class MainWindow(QtWidgets.QMainWindow):
         """创建远程训练任务请求"""
         if self.training_client_manager:
             is_valid, error_message, normalized_dataset = self._normalize_training_dataset_path(
-                params.get("dataset")
+                params.get("dataset"),
+                params.get("skip_dataset_check", False)
             )
             if not is_valid:
                 logger.warning(f"训练任务创建被拦截：{error_message}")
@@ -1281,19 +1334,30 @@ class MainWindow(QtWidgets.QMainWindow):
             self.training_widget.refresh_task_list()
     
     def _ensure_training_curve_docks(self):
-        """确保训练曲线 dock 可见并处于可停靠区域"""
+        """确保训练曲线 dock 和文件列表 dock 可见并处于底部停靠区域"""
+        # 确保文件列表 dock 可见并在底部区域
+        if hasattr(self, 'file_dock') and self.file_dock:
+            self.file_dock.setVisible(True)
+            # 如果文件 dock 不在底部区域，将其移回底部
+            if self.dockWidgetArea(self.file_dock) != Qt.BottomDockWidgetArea:
+                self.removeDockWidget(self.file_dock)
+                self.addDockWidget(Qt.BottomDockWidgetArea, self.file_dock)
+
         for dock in (self.loss_curve_dock, self.acc_curve_dock):
             if not dock:
                 continue
             if self.dockWidgetArea(dock) == Qt.NoDockWidgetArea and not dock.isFloating():
                 self.addDockWidget(Qt.BottomDockWidgetArea, dock)
-        
+
+        # 确保三个 dock 水平分割排列
         if (
             self.dockWidgetArea(self.loss_curve_dock) != Qt.NoDockWidgetArea
             and self.dockWidgetArea(self.acc_curve_dock) != Qt.NoDockWidgetArea
+            and self.dockWidgetArea(self.file_dock) != Qt.NoDockWidgetArea
         ):
-            self.splitDockWidget(self.loss_curve_dock, self.acc_curve_dock, Qt.Horizontal)
-        
+            self.splitDockWidget(self.loss_curve_dock, self.file_dock, Qt.Horizontal)
+            self.splitDockWidget(self.file_dock, self.acc_curve_dock, Qt.Horizontal)
+
         self.show_training_curves(True)
         try:
             if self.loss_curve_dock.height() < 40 or self.acc_curve_dock.height() < 40:
@@ -1303,14 +1367,15 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.addDockWidget(Qt.BottomDockWidgetArea, self.acc_curve_dock)
                 self.splitDockWidget(self.loss_curve_dock, self.acc_curve_dock, Qt.Horizontal)
             self.resizeDocks(
-                [self.loss_curve_dock, self.acc_curve_dock],
-                [220, 220],
-                Qt.Vertical,
+                [self.loss_curve_dock, self.file_dock, self.acc_curve_dock],
+                [200, 300, 200],
+                Qt.Horizontal,
             )
         except Exception:
             pass
         self.loss_curve_dock.raise_()
         self.acc_curve_dock.raise_()
+        self.file_dock.raise_()
     
     def update_training_curves(self, epochs, losses, accuracies):
         """
@@ -1478,7 +1543,11 @@ class MainWindow(QtWidgets.QMainWindow):
             if self.output_dir:
                 label_file_without_path = osp.basename(label_file)
                 label_file = osp.join(self.output_dir, label_file_without_path)
-            self.saveLabels(label_file)
+            if self.saveLabels(label_file):
+                # 更新缩略图列表中当前文件的标注状态
+                self.fileListWidget.setFileLabeled(self.imagePath, True)
+                # 保存成功后，自动切换到下一个未标注的图片
+                self.openNextUnlabeledImg()
             return
         self.dirty = True
         self.actions.save.setEnabled(True)
@@ -2392,6 +2461,16 @@ class MainWindow(QtWidgets.QMainWindow):
         contrast = dialog.slider_contrast.value()
         self.brightnessContrast_values[self.filename] = (brightness, contrast)
 
+    def formatConvert(self, _value=None):
+        """打开格式转换对话框"""
+        from labelme.widgets import FormatConvertDialog
+
+        # 获取当前目录作为默认输入目录
+        input_dir = self.lastOpenDir or self.output_dir or "."
+
+        dialog = FormatConvertDialog(parent=self, input_dir=input_dir)
+        dialog.exec_()
+
     def togglePolygons(self, value):
         flag = value
         for item in self.labelList:
@@ -2401,12 +2480,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def loadFile(self, filename=None):
         """Load the specified file, or the last opened file if None."""
-        # changing fileListWidget loads file
-        if filename in self.imageList and (
-            self.fileListWidget.current_file != filename
-        ):
+        # 如果文件在列表中，同步文件列表的选中状态（不阻止加载）
+        if filename in self.imageList:
             self.fileListWidget.setCurrentFile(filename)
-            return
 
         self.resetState()
         self.canvas.setEnabled(False)
@@ -2550,6 +2626,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.toggleActions(True)
         self.canvas.setFocus()
         self.status(str(self.tr("Loaded %s")) % osp.basename(str(filename)))
+
+        # 更新文件列表的选中状态（如果不是通过文件列表触发的）
+        if filename in self.imageList and self.fileListWidget.current_file != filename:
+            self.fileListWidget.setCurrentFile(filename)
+
         return True
 
     def resizeEvent(self, event):
@@ -2604,6 +2685,15 @@ class MainWindow(QtWidgets.QMainWindow):
             logger.info("正在停止TCP客户端...")
             self.tcp_client.stop()
             self.tcp_client = None
+        
+        # 清理训练组件
+        if hasattr(self, 'training_widget') and self.training_widget:
+            logger.info("正在清理训练组件...")
+            self.training_widget.cleanup()
+
+        if hasattr(self, 'training_client_manager') and self.training_client_manager:
+            logger.info("正在清理训练客户端管理器...")
+            self.training_client_manager.cleanup()
         
         # 保存窗口位置和大小
         self.settings.setValue("filename", self.filename if self.filename else "")
@@ -2691,6 +2781,41 @@ class MainWindow(QtWidgets.QMainWindow):
             self.loadFile(self.filename)
 
         self._config["keep_prev"] = keep_prev
+
+    def openNextUnlabeledImg(self):
+        """
+        打开下一个未标注的图片
+
+        从当前图片位置向后查找第一个没有对应标注文件的图片，
+        如果找到则加载该图片，否则停留在当前图片。
+        """
+        if len(self.imageList) <= 0:
+            return
+
+        if self.filename is None:
+            # 如果没有当前文件，从第一张开始找
+            start_index = 0
+        else:
+            start_index = self.imageList.index(self.filename) + 1
+
+        # 从start_index开始查找未标注的图片
+        for i in range(start_index, len(self.imageList)):
+            img_file = self.imageList[i]
+            label_file = osp.splitext(img_file)[0] + ".json"
+            if self.output_dir:
+                label_file = osp.join(self.output_dir, osp.basename(label_file))
+            if not osp.exists(label_file):
+                # 找到未标注的图片，加载它
+                self.filename = img_file
+                self.loadFile(self.filename)
+                return
+
+        # 如果没有找到未标注的图片，显示提示
+        QtWidgets.QMessageBox.information(
+            self,
+            self.tr("No unlabeled images"),
+            self.tr("All images have been labeled!"),
+        )
 
     def openFile(self, _value=False):
         if not self.mayContinue():
@@ -3141,6 +3266,7 @@ class MainWindow(QtWidgets.QMainWindow):
         导入拖放的图像文件
 
         处理用户拖放操作中的图像文件，将它们添加到文件列表中。
+        新加入的文件放在最右边（列表末尾）。
 
         Args:
             imageFiles: 拖放的图像文件路径列表
@@ -3151,16 +3277,43 @@ class MainWindow(QtWidgets.QMainWindow):
         ]
 
         self.filename = None
+
+        # 收集新文件并按标注状态分类
+        new_labeled = []
+        new_unlabeled = []
         for file in imageFiles:
             if file in self.imageList or not file.lower().endswith(tuple(extensions)):
                 continue
-            self.fileListWidget.addFile(file)
+            label_file = osp.splitext(file)[0] + ".json"
+            if self.output_dir:
+                label_file = osp.join(self.output_dir, osp.basename(label_file))
+            if osp.exists(label_file):
+                new_labeled.append(file)
+            else:
+                new_unlabeled.append(file)
 
-        if len(self.imageList) > 1:
+        # 新文件按已标注在前、未标注在后的顺序，但都放在列表末尾（最右边）
+        sorted_new_files = new_labeled + new_unlabeled
+
+        # 添加文件到列表（放在最右边）
+        for idx, file in enumerate(sorted_new_files):
+            label_file = osp.splitext(file)[0] + ".json"
+            if self.output_dir:
+                label_file = osp.join(self.output_dir, osp.basename(label_file))
+            is_labeled = osp.exists(label_file)
+            self.fileListWidget.addFile(file, index=len(self.fileListWidget.file_paths)+idx+1, is_labeled=is_labeled)
+
+        if len(self.fileListWidget.file_paths) > 1:
             self.actions.openNextImg.setEnabled(True)
             self.actions.openPrevImg.setEnabled(True)
 
-        self.openNextImg()
+        # 自动定位到第一个新加入的未标注图片，如果没有则定位到第一张新图片
+        if new_unlabeled:
+            self.filename = new_unlabeled[0]
+            self.loadFile(self.filename)
+        elif sorted_new_files:
+            self.filename = sorted_new_files[0]
+            self.loadFile(self.filename)
 
     def importDirImages(self, dirpath, pattern=None, load=True):
         """
@@ -3209,8 +3362,62 @@ class MainWindow(QtWidgets.QMainWindow):
                 filenames = [f for f in filenames if re.search(pattern, f)]
             except re.error:
                 pass
+
+        # 按标注状态排序：已标注的在前（按标注文件修改时间），未标注的在后
+        labeled_files = []  # 已标注的文件
+        unlabeled_files = []  # 未标注的文件
         for filename in filenames:
-            self.fileListWidget.addFile(filename)
+            label_file = osp.splitext(filename)[0] + ".json"
+            if self.output_dir:
+                label_file = osp.join(self.output_dir, osp.basename(label_file))
+            if osp.exists(label_file):
+                # 获取标注文件修改时间
+                mtime = osp.getmtime(label_file)
+                labeled_files.append((filename, mtime))
+            else:
+                unlabeled_files.append(filename)
+
+        # 已标注的按时间排序（先标注的在前面）
+        labeled_files.sort(key=lambda x: x[1])
+        labeled_files = [f[0] for f in labeled_files]
+
+        # 收集所有已标注文件中的唯一标签名
+        unique_labels = set()
+        for filename in labeled_files:
+            label_file = osp.splitext(filename)[0] + ".json"
+            if self.output_dir:
+                label_file = osp.join(self.output_dir, osp.basename(label_file))
+            if osp.exists(label_file):
+                try:
+                    with open(label_file, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                        for shape in data.get("shapes", []):
+                            label = shape.get("label")
+                            if label:
+                                unique_labels.add(label)
+                except Exception as e:
+                    logger.warning("Failed to load labels from {}: {}", label_file, e)
+
+        # 将收集到的唯一标签添加到 uniqLabelList
+        for label in sorted(unique_labels):
+            if not self.uniqLabelList.findItemByLabel(label):
+                item = self.uniqLabelList.createItemFromLabel(label)
+                self.uniqLabelList.addItem(item)
+                rgb = self._get_rgb_by_label(label)
+                self.uniqLabelList.setItemLabel(item, label, rgb)
+            # 同时同步到 labelDialog 的历史列表
+            self.labelDialog.addLabelHistory(label)
+
+        # 已标注的排在前面，未标注的排在后面
+        sorted_filenames = labeled_files + unlabeled_files
+
+        # 添加文件到列表（保持排序后的顺序）
+        for idx, filename in enumerate(sorted_filenames):
+            label_file = osp.splitext(filename)[0] + ".json"
+            if self.output_dir:
+                label_file = osp.join(self.output_dir, osp.basename(label_file))
+            is_labeled = osp.exists(label_file)
+            self.fileListWidget.addFile(filename, index=idx+1, is_labeled=is_labeled)
         # If the monitored directory becomes empty, close the currently displayed image.
         if self.fileListWidget.count() == 0:
             self.closeFile()
@@ -3218,7 +3425,24 @@ class MainWindow(QtWidgets.QMainWindow):
             self.actions.openPrevImg.setEnabled(False)
             return
 
-        self.openNextImg(load=load)
+        # 自动定位到第一个未标注的图片（即已标注区域之后的第一张）
+        if load:
+            if unlabeled_files:
+                # 有未标注的图片，加载第一张未标注的（即已标注之后的第一张）
+                self.filename = unlabeled_files[0]
+                self.loadFile(self.filename)
+            elif sorted_filenames:
+                # 全部已标注，加载最后一张（新标注的）
+                self.filename = sorted_filenames[-1]
+                self.loadFile(self.filename)
+
+            # 延迟滚动到选中的文件位置（确保部件已完全显示）
+            QtCore.QTimer.singleShot(100, self._scrollToCurrentFile)
+
+    def _scrollToCurrentFile(self):
+        """滚动文件列表到当前文件位置"""
+        if self.filename and self.filename in self.fileListWidget.file_paths:
+            self.fileListWidget.setCurrentFile(self.filename)
 
     def scanAllImages(self, folderPath):
         """

@@ -20,6 +20,9 @@ from .color_dialog import ColorDialog  # 颜色选择对话框
 # 文件操作相关组件
 from .file_dialog_preview import FileDialogPreview  # 文件对话框预览组件
 
+# 格式转换对话框
+from .format_convert_dialog import FormatConvertDialog  # 格式转换对话框
+
 # 标签管理相关组件
 from .label_dialog import LabelDialog      # 标签对话框
 from .label_dialog import LabelQLineEdit   # 标签输入框

@@ -1,7 +1,4 @@
-# -*- coding: utf-8 -*-
 """
-综合训练面板组件
-
 将训练配置和训练任务监控合并到一个面板中
 包含：
 - 服务器连接
@@ -15,6 +12,9 @@ import os
 import json
 import weakref
 import sys
+import time
+import subprocess
+import socket
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 from loguru import logger
@@ -123,6 +123,12 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
         self._auto_refresh_timer = None  # 自动刷新定时器
         self._is_monitoring = False
         self._monitor_target_task_id = None
+        self._selected_task_ids = set()  # 存储选中的任务ID
+        self._task_action_states = {}  # 记录任务瞬时状态：starting/stopping
+        self._task_retry_until = {}  # 记录任务失败后的重试冷却截止时间
+        self._task_server_check_pending = set()  # 记录正在查询服务端状态的任务
+        self._is_auto_refresh = False  # 标记是否为自动刷新
+        self._server_process = None  # 训练服务器进程句柄
         
         # 训练历史数据
         self._training_history = {
@@ -275,6 +281,12 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
         dataset_widget.setLayout(dataset_layout)
         self.basic_group.addRow("数据集：", dataset_widget)
 
+        # 添加跳过数据集格式检测复选框
+        self.skip_dataset_check_checkbox = QtWidgets.QCheckBox("跳过数据集格式检测（原始Labelme标注目录）")
+        self.skip_dataset_check_checkbox.setChecked(True)  # 默认选中
+        self.skip_dataset_check_checkbox.setToolTip("勾选此项将跳过 train.json 和 val.json 的格式检测，允许直接使用原始Labelme标注目录进行训练")
+        self.basic_group.addRow("", self.skip_dataset_check_checkbox)
+
         content_layout.addWidget(self.basic_group)
 
         # ==================== 训练参数 ====================
@@ -396,15 +408,19 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
         # 任务表格
         self.task_table = QtWidgets.QTableWidget()
         self.task_table.setColumnCount(5)
-        self.task_table.setHorizontalHeaderLabels(["任务 ID", "状态", "进度", "模型类型", "创建时间"])
+        self.task_table.setHorizontalHeaderLabels(["", "任务 ID", "进度", "模型类型", "创建时间"])
         self.task_table.horizontalHeader().setStretchLastSection(True)
         self.task_table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
+        self.task_table.horizontalHeader().setSectionResizeMode(0, QtWidgets.QHeaderView.Fixed)
+        self.task_table.horizontalHeader().resizeSection(0, 40)  # 复选框列固定宽度
         self.task_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
-        self.task_table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
+        # 禁止行选中，只通过复选框选择
+        self.task_table.setSelectionMode(QtWidgets.QAbstractItemView.NoSelection)
+        # 允许复选框编辑
+        self.task_table.setEditTriggers(QtWidgets.QAbstractItemView.DoubleClicked | QtWidgets.QAbstractItemView.EditKeyPressed)
         self.task_table.verticalHeader().setVisible(False)
         self.task_table.setMinimumHeight(100)
         self.task_table.setMaximumHeight(150)
-        self.task_table.itemSelectionChanged.connect(self._on_task_selected)
 
         # 设置表头样式
         self.task_table.setStyleSheet("""
@@ -424,6 +440,9 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
                 background-color: #e3f2fd;
                 color: black;
             }
+            QTableWidget::item {
+                padding: 2px;
+            }
         """)
 
         self.task_list_group.getContentLayout().addRow(self.task_table)
@@ -431,12 +450,30 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
         # 任务操作按钮
         task_btn_layout = QtWidgets.QHBoxLayout()
 
+        # 全选/取消全选按钮
+        self.select_all_btn = QtWidgets.QPushButton("全选")
+        self.select_all_btn.setFixedWidth(50)
+        self.select_all_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #607D8B;
+                color: white;
+                border: none;
+                padding: 4px 8px;
+                border-radius: 3px;
+                font-size: 11px;
+            }
+            QPushButton:hover {
+                background-color: #546E7A;
+            }
+        """)
+        self.select_all_btn.clicked.connect(self._on_select_all_clicked)
+
         self.refresh_btn = QtWidgets.QPushButton("刷新列表")
         self.refresh_btn.setEnabled(False)
 
         self.get_status_btn = QtWidgets.QPushButton("获取状态")
         self.get_status_btn.setEnabled(False)
-        self.get_status_btn.setToolTip("获取当前选中任务的详细状态")
+        self.get_status_btn.setToolTip("获取选中任务的详细状态")
 
         self.monitor_btn = QtWidgets.QPushButton("监控训练")
         self.monitor_btn.setEnabled(False)
@@ -458,7 +495,7 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
         """)
 
         self.delete_task_btn = QtWidgets.QPushButton("删除任务")
-        self.delete_task_btn.setEnabled(False)
+        self.delete_task_btn.setEnabled(True)
         self.delete_task_btn.setStyleSheet("""
             QPushButton {
                 background-color: #f44336;
@@ -475,6 +512,64 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
             }
         """)
 
+        # 批量操作按钮
+        self.batch_start_btn = QtWidgets.QPushButton("批量启动")
+        self.batch_start_btn.setEnabled(False)
+        self.batch_start_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                padding: 4px 12px;
+                border-radius: 3px;
+            }
+            QPushButton:hover {
+                background-color: #45a049;
+            }
+            QPushButton:disabled {
+                background-color: #cccccc;
+            }
+        """)
+        self.batch_start_btn.clicked.connect(self._on_batch_start_clicked)
+
+        self.batch_stop_btn = QtWidgets.QPushButton("批量停止")
+        self.batch_stop_btn.setEnabled(False)
+        self.batch_stop_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #f44336;
+                color: white;
+                border: none;
+                padding: 4px 12px;
+                border-radius: 3px;
+            }
+            QPushButton:hover {
+                background-color: #d32f2f;
+            }
+            QPushButton:disabled {
+                background-color: #cccccc;
+            }
+        """)
+        self.batch_stop_btn.clicked.connect(self._on_batch_stop_clicked)
+
+        self.batch_delete_btn = QtWidgets.QPushButton("批量删除")
+        self.batch_delete_btn.setEnabled(False)
+        self.batch_delete_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #9C27B0;
+                color: white;
+                border: none;
+                padding: 4px 12px;
+                border-radius: 3px;
+            }
+            QPushButton:hover {
+                background-color: #7B1FA2;
+            }
+            QPushButton:disabled {
+                background-color: #cccccc;
+            }
+        """)
+        self.batch_delete_btn.clicked.connect(self._on_batch_delete_clicked)
+
         # 刷新间隔控制
         refresh_interval_layout = QtWidgets.QHBoxLayout()
         refresh_interval_layout.setSpacing(4)
@@ -487,11 +582,16 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
         self.refresh_interval_spin.setToolTip("设置自动刷新任务列表的间隔时间(1-10秒)")
         refresh_interval_layout.addWidget(self.refresh_interval_spin)
 
+        task_btn_layout.addWidget(self.select_all_btn)
         task_btn_layout.addLayout(refresh_interval_layout)
         task_btn_layout.addWidget(self.refresh_btn)
         task_btn_layout.addWidget(self.get_status_btn)
         task_btn_layout.addWidget(self.monitor_btn)
         task_btn_layout.addWidget(self.delete_task_btn)
+        # 批量操作按钮已隐藏
+        # task_btn_layout.addWidget(self.batch_start_btn)
+        # task_btn_layout.addWidget(self.batch_stop_btn)
+        # task_btn_layout.addWidget(self.batch_delete_btn)
         task_btn_layout.addStretch()
 
         self.task_list_group.getContentLayout().addRow(task_btn_layout)
@@ -504,13 +604,11 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
         # 任务信息
         info_layout = QtWidgets.QFormLayout()
         self.current_task_label = QtWidgets.QLabel("无")
-        self.current_status_label = QtWidgets.QLabel("-")
         self.current_epoch_label = QtWidgets.QLabel("-")
         self.current_loss_label = QtWidgets.QLabel("-")
         self.current_accuracy_label = QtWidgets.QLabel("-")
 
         info_layout.addRow("任务 ID:", self.current_task_label)
-        info_layout.addRow("状态:", self.current_status_label)
         info_layout.addRow("轮次:", self.current_epoch_label)
         info_layout.addRow("损失:", self.current_loss_label)
         info_layout.addRow("准确率:", self.current_accuracy_label)
@@ -585,6 +683,7 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
         self.delete_task_btn.clicked.connect(self._on_delete_clicked)
         self.clear_log_btn.clicked.connect(self._on_clear_log_clicked)
         self.refresh_interval_spin.valueChanged.connect(self._on_refresh_interval_changed)
+        self.task_table.itemChanged.connect(self._on_checkbox_changed)
 
     # ==================== 训练配置相关方法 ====================
 
@@ -606,6 +705,7 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
             batch_size = int(self.batch_combo.currentText())
             learning_rate = float(self.lr_combo.currentText())
             trainset_ratio = float(self.train_ratio_combo.currentText())
+            skip_dataset_check = self.skip_dataset_check_checkbox.isChecked()
 
             params = {
                 "model_type": model_type,
@@ -614,7 +714,8 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
                 "epochs": epochs,
                 "batch_size": batch_size,
                 "learning_rate": learning_rate,
-                "trainset_ratio": trainset_ratio
+                "trainset_ratio": trainset_ratio,
+                "skip_dataset_check": skip_dataset_check
             }
             return params
         except Exception as e:
@@ -626,7 +727,8 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
                 "epochs": 50,
                 "batch_size": 32,
                 "learning_rate": 0.001,
-                "trainset_ratio": 0.9
+                "trainset_ratio": 0.9,
+                "skip_dataset_check": False
             }
 
     def get_server_config(self):
@@ -657,6 +759,440 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
         except Exception:
             pass
 
+    def _find_training_server_exe(self):
+        """查找 training_server.exe 的路径"""
+        exe_name = "training_server.exe"
+        
+        # 1. 如果是打包环境，在 exe 所在目录查找
+        if getattr(sys, 'frozen', False):
+            exe_dir = os.path.dirname(sys.executable)
+            exe_path = os.path.join(exe_dir, exe_name)
+            if os.path.exists(exe_path):
+                return exe_path
+        
+        # 2. 在项目根目录查找（labelme 包的上两级）
+        current_file = os.path.abspath(__file__)
+        # labelme/widgets/unified_training_widget.py -> 上两级是项目根目录
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_file)))
+        exe_path = os.path.join(project_root, exe_name)
+        if os.path.exists(exe_path):
+            return exe_path
+        
+        # 3. 检查 training_client/training_server.exe
+        exe_path = os.path.join(project_root, "training_client", exe_name)
+        if os.path.exists(exe_path):
+            return exe_path
+        
+        return None
+
+    def _is_training_server_running(self):
+        """检查 training_server.exe 是否正在运行（Windows）"""
+        try:
+            result = subprocess.run(
+                ["tasklist", "/FI", "IMAGENAME eq training_server.exe"],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            return "training_server.exe" in result.stdout
+        except Exception:
+            return False
+
+    def _ensure_server_running(self, host, port):
+        """
+        确保训练服务器正在运行
+        如果未运行则启动它并显示进度对话框等待
+        返回 True 表示服务器已就绪，False 表示失败
+
+        注意：此对话框会保持打开直到 manager 真正连接成功，
+        因为训练服务器可能需要3-5分钟时间才能完全启动
+        """
+        # 先检查是否已经在运行
+        if self._is_training_server_running():
+            return True
+
+        # 查找 exe 路径
+        exe_path = self._find_training_server_exe()
+        if not exe_path:
+            QtWidgets.QMessageBox.critical(
+                self,
+                "错误",
+                "训练服务器不存在"
+            )
+            sys.exit(1)
+            return False
+
+        # 启动服务器进程
+        try:
+            self._server_process = subprocess.Popen(
+                [exe_path],
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
+        except Exception as e:
+            QtWidgets.QMessageBox.critical(
+                self,
+                "启动失败",
+                f"无法启动训练服务器：{str(e)}"
+            )
+            return False
+
+        # 创建进度对话框
+        progress = QtWidgets.QProgressDialog(self)
+        progress.setWindowTitle("启动服务器")
+        progress.setLabelText("启动训练服务器...  用时: 00:00")
+        progress.setRange(0, 0)  # 不确定进度（繁忙状态）
+        progress.setCancelButtonText("取消")
+        progress.setWindowModality(Qt.WindowModal)
+        progress.setFixedWidth(400)
+
+        # 设置蓝色进度条样式
+        progress.setStyleSheet("""
+            QProgressBar {
+                border: 1px solid #cccccc;
+                border-radius: 4px;
+                text-align: center;
+                height: 20px;
+            }
+            QProgressBar::chunk {
+                background-color: #0078d4;
+                border-radius: 3px;
+            }
+        """)
+
+        # 用于跟踪状态的变量
+        start_time = time.time()
+        elapsed = 0
+        max_wait = 360  # 最长等待6分钟（训练服务器可能需要3-5分钟启动）
+        port_available = False  # 端口是否可用
+        connection_established = False  # manager 是否真正连接成功
+        user_cancelled = False
+
+        # 创建事件循环用于阻塞等待
+        loop = QtCore.QEventLoop(self)
+
+        # 创建定时器更新计时显示
+        timer_label = QtCore.QTimer(self)
+
+        def update_label():
+            nonlocal elapsed
+            elapsed = int(time.time() - start_time)
+            minutes = elapsed // 60
+            seconds = elapsed % 60
+
+            if not port_available:
+                progress.setLabelText(f"启动训练服务器...  用时: {minutes:02d}:{seconds:02d}")
+            else:
+                progress.setLabelText(f"连接训练服务器...  用时: {minutes:02d}:{seconds:02d}")
+
+            # 检查是否超时
+            if elapsed >= max_wait:
+                timer_label.stop()
+                if 'timer_socket' in locals():
+                    timer_socket.stop()
+                if 'timer_check' in locals():
+                    timer_check.stop()
+                loop.quit()
+
+        timer_label.timeout.connect(update_label)
+        timer_label.start(1000)  # 每秒更新
+
+        # 创建定时器尝试检测端口
+        timer_socket = QtCore.QTimer(self)
+
+        def try_detect_port():
+            nonlocal port_available
+            if port_available:
+                return  # 已经检测到端口，不再检测
+            try:
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.settimeout(1)
+                result = sock.connect_ex((host, port))
+                sock.close()
+                if result == 0:
+                    # 端口可用，停止端口检测，开始尝试 manager 连接
+                    port_available = True
+                    timer_socket.stop()
+                    # 端口可用后开始尝试 manager 连接
+                    try_manager_connect()
+            except Exception:
+                pass
+
+        timer_socket.timeout.connect(try_detect_port)
+        timer_socket.start(500)  # 每500ms检测一次
+
+        # 创建定时器检查 manager 连接结果
+        timer_check = QtCore.QTimer(self)
+        connect_result = None  # None=等待中, True=成功, False=失败
+        manager_connect_attempts = 0
+        max_manager_attempts = 10  # manager 最大重试次数
+
+        # 临时信号处理函数
+        def on_temp_connected(success):
+            nonlocal connect_result
+            if not user_cancelled:
+                connect_result = success
+
+        def on_temp_error(msg):
+            nonlocal connect_result
+            if not user_cancelled:
+                connect_result = False
+
+        def check_connection_result():
+            nonlocal connection_established, manager_connect_attempts, connect_result
+            if connection_established:
+                return  # 已经连接成功
+            if connect_result is True:
+                connection_established = True
+                timer_check.stop()
+                timer_label.stop()
+                loop.quit()
+            elif connect_result is False:
+                # 连接失败，检查是否还有重试次数
+                manager_connect_attempts += 1
+                if manager_connect_attempts >= max_manager_attempts:
+                    # 超过最大重试次数
+                    timer_check.stop()
+                    timer_label.stop()
+                    loop.quit()
+                else:
+                    # 重试
+                    connect_result = None
+                    try_manager_connect()
+
+        timer_check.timeout.connect(check_connection_result)
+
+        def try_manager_connect():
+            """尝试使用 manager 连接服务器"""
+            nonlocal connect_result
+            if not self._manager:
+                connect_result = False
+                return
+
+            # 发起连接
+            self._manager.connect_server(host, port)
+
+            # 启动检查定时器（如果还没启动）
+            if not timer_check.isActive():
+                timer_check.start(500)  # 每500ms检查一次结果
+
+        # 连接临时信号（只连接一次）
+        self._manager.connected.connect(on_temp_connected)
+        self._manager.connection_error.connect(on_temp_error)
+
+        # 处理取消按钮
+        def on_cancel():
+            nonlocal user_cancelled
+            user_cancelled = True
+            timer_label.stop()
+            timer_socket.stop()
+            timer_check.stop()
+            loop.quit()
+
+        progress.canceled.connect(on_cancel)
+
+        # 显示对话框并进入事件循环
+        progress.show()
+        loop.exec_()
+
+        # 清理
+        try:
+            progress.canceled.disconnect(on_cancel)
+        except Exception:
+            pass
+        # 断开临时信号连接
+        try:
+            self._manager.connected.disconnect(on_temp_connected)
+        except Exception:
+            pass
+        try:
+            self._manager.connection_error.disconnect(on_temp_error)
+        except Exception:
+            pass
+        timer_label.stop()
+        timer_socket.stop()
+        timer_check.stop()
+        progress.close()
+
+        if user_cancelled:
+            return False
+
+        if connection_established:
+            self._log("训练服务器已启动并成功连接")
+            return True
+
+        QtWidgets.QMessageBox.warning(
+            self,
+            "启动超时",
+            f"训练服务器启动超时（{max_wait//60}分钟），请手动检查服务器状态。\n\n"
+            f"注意：首次启动训练服务器可能需要3-5分钟下载依赖。"
+        )
+        return False
+
+    def _connect_with_retry(self, host, port):
+        """
+        带重试的连接方法，显示进度对话框
+        
+        Args:
+            host: 服务器地址
+            port: 服务器端口
+            
+        Returns:
+            bool: 连接是否成功
+        """
+        # 创建进度对话框
+        progress = QtWidgets.QProgressDialog(self)
+        progress.setWindowTitle("连接服务器")
+        progress.setLabelText("连接训练服务器...  第1次尝试  用时: 00:00")
+        progress.setRange(0, 0)
+        progress.setCancelButtonText("取消")
+        progress.setWindowModality(Qt.WindowModal)
+        progress.setFixedWidth(400)
+        progress.setMinimumDuration(0)
+        
+        # 蓝色进度条样式
+        progress.setStyleSheet("""
+            QProgressBar {
+                border: 1px solid #cccccc;
+                border-radius: 4px;
+                text-align: center;
+                height: 20px;
+            }
+            QProgressBar::chunk {
+                background-color: #0078d4;
+                border-radius: 3px;
+            }
+        """)
+        
+        # 连接参数
+        max_attempts = 3
+        attempt_timeout = 5
+        
+        # 状态变量
+        attempt = 1
+        connect_result = None  # None=等待中, True=成功, False=失败
+        attempt_start_time = time.time()
+        user_cancelled = False
+        finished = False  # 防止重复退出
+        
+        loop = QtCore.QEventLoop(self)
+        
+        # 临时信号处理
+        def on_connected(success):
+            nonlocal connect_result
+            if not finished and not user_cancelled:
+                connect_result = success
+            
+        def on_error(msg):
+            nonlocal connect_result
+            if not finished and not user_cancelled:
+                connect_result = False
+        
+        # 临时连接 manager 信号
+        self._manager.connected.connect(on_connected)
+        self._manager.connection_error.connect(on_error)
+        
+        # 定时器：更新标签
+        timer_label = QtCore.QTimer(self)
+        
+        def update_label():
+            nonlocal connect_result
+            if finished or user_cancelled:
+                return
+            elapsed = int(time.time() - attempt_start_time)
+            minutes = elapsed // 60
+            seconds = elapsed % 60
+            progress.setLabelText(
+                f"连接训练服务器...  第{attempt}次尝试  用时: {minutes:02d}:{seconds:02d}"
+            )
+            # 超时标记为失败，让 check_result 处理重试
+            if elapsed >= attempt_timeout and connect_result is None:
+                connect_result = False
+        
+        timer_label.timeout.connect(update_label)
+        timer_label.start(1000)
+        
+        # 定时器：检查结果
+        timer_check = QtCore.QTimer(self)
+        
+        def check_result():
+            nonlocal connect_result, attempt, attempt_start_time, finished
+            if finished or user_cancelled:
+                return
+            
+            if connect_result is True:
+                # 连接成功
+                finished = True
+                timer_label.stop()
+                timer_check.stop()
+                loop.quit()
+            elif connect_result is False:
+                # 当前尝试失败
+                if attempt < max_attempts:
+                    attempt += 1
+                    connect_result = None
+                    attempt_start_time = time.time()
+                    self._log(f"第{attempt-1}次连接失败，尝试第{attempt}次...")
+                    self._manager.connect_server(host, port)
+                else:
+                    # 所有尝试都失败
+                    finished = True
+                    timer_label.stop()
+                    timer_check.stop()
+                    loop.quit()
+        
+        timer_check.timeout.connect(check_result)
+        timer_check.start(500)
+        
+        # 取消按钮处理
+        def on_cancel():
+            nonlocal user_cancelled, finished
+            if finished:
+                return  # 已经完成了，忽略取消
+            user_cancelled = True
+            finished = True
+            timer_label.stop()
+            timer_check.stop()
+            loop.quit()
+        
+        progress.canceled.connect(on_cancel)
+        
+        # 发起第一次连接
+        self._manager.connect_server(host, port)
+        
+        # 显示对话框并进入事件循环
+        progress.show()
+        loop.exec_()
+        
+        # 先断开 canceled 信号，防止 close() 触发假取消
+        try:
+            progress.canceled.disconnect(on_cancel)
+        except Exception:
+            pass
+        
+        # 断开临时 manager 信号连接
+        try:
+            self._manager.connected.disconnect(on_connected)
+        except Exception:
+            pass
+        try:
+            self._manager.connection_error.disconnect(on_error)
+        except Exception:
+            pass
+        
+        progress.close()
+        
+        # 成功优先判断（即使 canceled 被意外触发，只要连接成功就返回 True）
+        if connect_result is True:
+            self._log("已成功连接到训练服务器")
+            return True
+        
+        if user_cancelled:
+            self._log("用户取消连接", "warning")
+            return False
+        
+        self._log(f"连接失败，已尝试 {max_attempts} 次", "error")
+        return False
+
     # ==================== 事件处理 ====================
 
     def _on_server_connect_clicked(self):
@@ -666,14 +1202,82 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
                 self.server_disconnect_requested.emit()
             else:
                 host, port = self.get_server_config()
-                self.server_connect_requested.emit(host, port)
-                self.set_connection_status(False, "连接中...")
+
+                # 确保服务器正在运行（此方法会在内部完成 manager 连接）
+                if not self._ensure_server_running(host, port):
+                    return
+
+                # 检查 manager 是否已连接（_ensure_server_running 可能已完成连接）
+                if self._manager and self._manager.is_connected():
+                    # 已经连接成功，UI 更新由 manager.connected 信号自动触发
+                    self._log("已连接到训练服务器")
+                else:
+                    # 服务器已在运行，但需要建立 manager 连接
+                    if self._connect_with_retry(host, port):
+                        # 连接成功 - UI更新由 manager.connected 信号自动触发
+                        pass
+                    else:
+                        # 连接失败 - 检查 manager 实际状态，避免状态不一致
+                        if self._manager and self._manager.is_connected():
+                            # manager 实际已连接（可能信号已触发了UI更新），不要覆盖
+                            pass
+                        else:
+                            self.set_connection_status(False, "连接失败")
+                            self._log("连接训练服务器失败", "error")
         except Exception as e:
             self._log(f"服务器连接异常：{str(e)}", "error")
 
     def _on_create_task_clicked(self):
         """创建远程任务按钮点击"""
         try:
+            # 检查当前是否已有任务
+            task_count = len(self._tasks)
+            if task_count > 0:
+                reply = QtWidgets.QMessageBox.question(
+                    self,
+                    "确认创建新任务",
+                    f"当前已有 {task_count} 个任务，是否删除当前任务并创建新任务？",
+                    QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+                    QtWidgets.QMessageBox.No
+                )
+                if reply != QtWidgets.QMessageBox.Yes:
+                    return
+
+                # 用户确认删除，先停止运行中的任务，然后删除所有任务
+                running_tasks = []
+                non_running_tasks = []
+                for task_id in list(self._tasks.keys()):
+                    status = self._get_effective_task_status(task_id)
+                    if status == "running":
+                        running_tasks.append(task_id)
+                    else:
+                        non_running_tasks.append(task_id)
+
+                # 先停止运行中的任务
+                for task_id in running_tasks:
+                    try:
+                        self._set_task_action_state(task_id, "stopping")
+                        self._manager.stop_training(task_id)
+                        self._log(f"正在停止任务：{task_id[:16]}...")
+                    except Exception as e:
+                        self._clear_task_action_state(task_id)
+                        self._log(f"停止任务 {task_id[:16]}... 失败：{str(e)}", "error")
+
+                # 等待一小段时间让停止操作生效
+                if running_tasks:
+                    QtCore.QThread.msleep(500)
+
+                # 删除所有任务
+                for task_id in list(self._tasks.keys()):
+                    try:
+                        self._manager.delete_task(task_id)
+                    except Exception as e:
+                        self._log(f"删除任务 {task_id[:16]}... 失败：{str(e)}", "error")
+
+                self._log(f"已删除 {task_count} 个现有任务")
+                self._selected_task_ids.clear()
+                self._update_batch_buttons_state()
+
             params = self.get_training_params()
             self.create_remote_task_requested.emit(params)
             self.training_status_label.setText("正在创建任务...")
@@ -682,35 +1286,186 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
             self.training_status_label.setText("创建任务失败")
 
     def _on_start_clicked(self):
-        """启动训练按钮点击"""
-        if self._current_task_id and self._manager:
-            if not self._manager.is_connected():
-                self._log("未连接到服务器", "error")
-                return
-            try:
-                self._manager.start_training(self._current_task_id)
-            except Exception as e:
-                self._log(f"启动训练异常：{str(e)}", "error")
-        else:
-            self.start_training_requested.emit()
+        """启动训练按钮点击 - 启动选中的复选框任务"""
+        if not self._manager:
+            self._log("未初始化训练管理器", "error")
+            return
+        
+        if not self._manager.is_connected():
+            self._log("未连接到服务器", "error")
+            return
+        
+        # 获取选中的任务ID列表
+        selected_tasks = list(self._selected_task_ids)
+        if not selected_tasks:
+            self._log("请先选择要启动的任务", "warning")
+            return
+        
+        try:
+            requested_count = 0
+            for task_id in selected_tasks:
+                status = self._get_effective_task_status(task_id)
+                # 只启动处于 pending、stopped 或 failed 状态的任务
+                if status in ["pending", "stopped", "failed", "unknown"]:
+                    self._set_task_action_state(task_id, "starting")
+                    self._manager.start_training(task_id)
+                    requested_count += 1
+                    self._log(f"正在启动任务：{task_id[:16]}...")
+                elif status == "start_checking":
+                    self._log(f"任务 {task_id[:16]}... 正在校验服务端状态，请稍后再试", "warning")
+                elif status == "start_cooldown":
+                    self._log(f"任务 {task_id[:16]}... 启动失败后冷却中，请稍后再试", "warning")
+                else:
+                    self._log(f"任务 {task_id[:16]}... 状态为 {status}，跳过启动", "warning")
+            
+            self._update_batch_buttons_state()
+            if requested_count > 0:
+                self._log(f"已发送 {requested_count} 个任务的启动请求")
+            else:
+                self._log("没有可启动的任务", "warning")
+        except Exception as e:
+            self._log(f"启动训练异常：{str(e)}", "error")
 
     def _on_stop_clicked(self):
-        """停止训练按钮点击"""
-        if self._current_task_id and self._manager:
-            if not self._manager.is_connected():
-                self._log("未连接到服务器", "error")
-                return
-            try:
-                self._manager.stop_training(self._current_task_id)
-            except Exception as e:
-                self._log(f"停止训练异常：{str(e)}", "error")
-        else:
-            self.stop_training_requested.emit()
+        """停止训练按钮点击 - 停止选中的复选框任务"""
+        if not self._manager:
+            self._log("未初始化训练管理器", "error")
+            return
+        
+        if not self._manager.is_connected():
+            self._log("未连接到服务器", "error")
+            return
+        
+        # 获取选中的任务ID列表
+        selected_tasks = list(self._selected_task_ids)
+        if not selected_tasks:
+            self._log("请先选择要停止的任务", "warning")
+            return
+        
+        try:
+            requested_count = 0
+            failed_tasks = []
+            
+            for task_id in selected_tasks:
+                task = self._tasks.get(task_id, {})
+                status = self._get_effective_task_status(task_id)
+                # 只停止处于 running 状态的任务
+                if status == "running":
+                    try:
+                        self._set_task_action_state(task_id, "stopping")
+                        self._manager.stop_training(task_id)
+                        requested_count += 1
+                        self._log(f"正在停止任务：{task_id[:16]}...")
+                    except Exception as e:
+                        self._clear_task_action_state(task_id)
+                        self._log(f"停止任务 {task_id[:16]}... 失败：{str(e)}", "error")
+                        failed_tasks.append(task_id)
+                else:
+                    self._log(f"任务 {task_id[:16]}... 状态为 {status}，跳过停止", "warning")
+            
+            self._update_batch_buttons_state()
+            if requested_count > 0:
+                self._log(f"已发送 {requested_count} 个任务的停止请求")
+            
+            # 处理停止失败的任务
+            if failed_tasks:
+                self._log(f"有 {len(failed_tasks)} 个任务停止失败，尝试查询服务器状态...")
+                self._handle_failed_stop_tasks(failed_tasks)
+        except Exception as e:
+            self._log(f"停止训练异常：{str(e)}", "error")
 
-    def _on_refresh_clicked(self):
-        """刷新列表按钮点击（带防抖）"""
+    def _handle_failed_stop_tasks(self, failed_tasks):
+        """处理停止失败的任务 - 查询服务器并尝试删除"""
+        if not self._manager or not self._manager.is_connected():
+            return
+        
+        for task_id in failed_tasks:
+            try:
+                # 查询服务器是否存在该任务
+                self._log(f"查询任务 {task_id[:16]}... 在服务器上的状态...")
+                
+                # 刷新任务列表以获取最新状态
+                self._manager.list_tasks()
+                
+                # 等待一小段时间让列表更新
+                QtCore.QTimer.singleShot(500, lambda tid=task_id: self._check_and_delete_task(tid))
+            except Exception as e:
+                self._log(f"查询任务 {task_id[:16]}... 状态失败：{str(e)}", "error")
+
+    def _check_and_delete_task(self, task_id, retry_count=0):
+        """检查任务状态并尝试删除"""
         if not self._manager:
             return
+        
+        # 检查任务是否还在本地列表中
+        if task_id not in self._tasks:
+            self._log(f"任务 {task_id[:16]}... 已从本地列表中移除")
+            # 从选中集合中移除
+            self._selected_task_ids.discard(task_id)
+            self._update_batch_buttons_state()
+            return
+        
+        # 检查任务是否还在服务器上
+        task_in_server = False
+        for tid in self._tasks.keys():
+            if tid == task_id:
+                task_in_server = True
+                break
+        
+        if not task_in_server:
+            # 任务不在服务器上，直接从本地列表删除
+            self._log(f"任务 {task_id[:16]}... 不在服务器上，从本地列表删除")
+            self._remove_task_from_list(task_id)
+        else:
+            # 任务在服务器上，尝试删除（最多3次）
+            if retry_count < 3:
+                self._log(f"尝试删除任务 {task_id[:16]}... (第 {retry_count + 1} 次)")
+                try:
+                    self._manager.delete_task(task_id)
+                    # 删除后再次检查
+                    QtCore.QTimer.singleShot(1000, lambda tid=task_id, rc=retry_count + 1: self._check_and_delete_task(tid, rc))
+                except Exception as e:
+                    self._log(f"删除任务 {task_id[:16]}... 失败：{str(e)}", "error")
+                    # 继续重试
+                    QtCore.QTimer.singleShot(1000, lambda tid=task_id, rc=retry_count + 1: self._check_and_delete_task(tid, rc))
+            else:
+                self._log(f"任务 {task_id[:16]}... 删除失败，已达到最大重试次数", "error")
+
+    def _remove_task_from_list(self, task_id):
+        """从任务列表中移除任务"""
+        try:
+            # 从本地数据中移除
+            if task_id in self._tasks:
+                del self._tasks[task_id]
+            
+            # 从选中集合中移除
+            self._selected_task_ids.discard(task_id)
+            self._clear_task_action_state(task_id)
+            self._clear_task_retry_state(task_id)
+            
+            # 如果当前任务是该任务，清空当前任务
+            if self._current_task_id == task_id:
+                self._current_task_id = None
+            
+            # 刷新表格
+            self._on_refresh_clicked()
+            self._update_batch_buttons_state()
+            
+            self._log(f"任务 {task_id[:16]}... 已从列表中移除")
+        except Exception as e:
+            self._log(f"移除任务 {task_id[:16]}... 失败：{str(e)}", "error")
+
+    def _on_refresh_clicked(self, is_auto_refresh=False):
+        """刷新列表按钮点击（带防抖）
+        
+        Args:
+            is_auto_refresh: 是否为自动刷新调用，自动刷新时不输出日志
+        """
+        if not self._manager:
+            return
+        
+        # 记录是否为自动刷新，供后续回调使用
+        self._is_auto_refresh = is_auto_refresh
         
         try:
             # 取消之前的定时器（如果存在）
@@ -719,7 +1474,9 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
             
             # 立即刷新
             self._manager.list_tasks()
-            self._log("正在刷新任务列表...")
+            # 只在手动刷新时输出日志
+            if not is_auto_refresh:
+                self._log("正在刷新任务列表...")
         except Exception as e:
             self._log(f"刷新列表异常：{str(e)}", "error")
 
@@ -750,7 +1507,8 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
         # 复用定时器对象，避免内存泄漏
         if not hasattr(self, '_auto_refresh_timer') or self._auto_refresh_timer is None:
             self._auto_refresh_timer = QtCore.QTimer(self)
-            self._auto_refresh_timer.timeout.connect(self._on_refresh_clicked)
+            # 自动刷新时传入 is_auto_refresh=True
+            self._auto_refresh_timer.timeout.connect(lambda: self._on_refresh_clicked(is_auto_refresh=True))
 
         # 停止之前的定时器
         if self._auto_refresh_timer.isActive():
@@ -901,24 +1659,49 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
             if self._current_task_id:
                 self.current_task_label.setText(self._current_task_id[:16] + "...")
 
-            # 同步更新任务列表中的进度
-            if self._current_task_id:
-                # 更新内存中的任务数据
-                if self._current_task_id in self._tasks:
+                # 同步更新任务列表中的进度
+                if self._current_task_id:
+                    # 更新内存中的任务数据（如果不存在则创建）
+                    if self._current_task_id not in self._tasks:
+                        self._tasks[self._current_task_id] = {}
                     self._tasks[self._current_task_id]["progress"] = progress_percent / 100.0
                     self._tasks[self._current_task_id]["epoch"] = epoch
                     self._tasks[self._current_task_id]["total_epochs"] = total_epochs
+                    self._tasks[self._current_task_id]["status"] = "running"
 
-                # 更新表格中的进度列
-                for row in range(self.task_table.rowCount()):
-                    item = self.task_table.item(row, 0)
-                    if item and item.data(Qt.UserRole) == self._current_task_id:
-                        self.task_table.setItem(row, 2, QtWidgets.QTableWidgetItem(f"{progress_percent}%"))
-                        break
+                    # 更新表格中的进度列（任务ID在第1列，进度在第2列）
+                    row_found = False
+                    for row in range(self.task_table.rowCount()):
+                        item = self.task_table.item(row, 1)  # 任务ID在第1列
+                        if item and item.data(Qt.UserRole) == self._current_task_id:
+                            self.task_table.setItem(row, 2, QtWidgets.QTableWidgetItem(f"{progress_percent}%"))
+                            row_found = True
+                            break
+                
+                # 如果表格中没有找到该任务的行，触发任务列表刷新
+                if not row_found and self._manager and self._manager.is_connected():
+                    logger.debug(f"表格中未找到任务 {self._current_task_id[:8]}...，触发任务列表刷新")
+                    self._delayed_refresh(100)  # 100ms后刷新，避免频繁请求
 
             if total_epochs and total_epochs > 0 and epoch == total_epochs:
                 self.training_status_label.setText("训练已完成")
                 self.monitor_btn.setVisible(False)
+                
+                # 更新任务状态为 completed
+                if self._current_task_id:
+                    # 更新内存中的任务状态
+                    if self._current_task_id in self._tasks:
+                        self._tasks[self._current_task_id]["status"] = "completed"
+                        self._tasks[self._current_task_id]["progress"] = 1.0
+                    
+                    # 更新表格中的进度为100%（列索引2，因为复选框在第0列，任务ID在第1列）
+                    for row in range(self.task_table.rowCount()):
+                        item = self.task_table.item(row, 1)  # 任务ID在第1列
+                        if item and item.data(Qt.UserRole) == self._current_task_id:
+                            self.task_table.setItem(row, 2, QtWidgets.QTableWidgetItem("100%"))  # 进度在第2列
+                            break
+                    
+                    self._log(f"任务 {self._current_task_id[:16]}... 训练已完成")
         except Exception as e:
             logger.warning(f"更新监控进度失败: {e}")
 
@@ -948,13 +1731,14 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
         }
 
     def _on_delete_clicked(self):
-        """删除任务按钮点击"""
-        if not self._current_task_id or not self._manager:
-            return
-
-        # 检查管理器是否已连接
-        if not self._manager.is_connected():
-            self._log("未连接到服务器", "error")
+        """删除任务按钮点击 - 支持批量删除选中的任务"""
+        # 首先检查是否已连接服务器
+        if not self._manager or not self._manager.is_connected():
+            QtWidgets.QMessageBox.warning(
+                self,
+                "未连接服务器",
+                "请先连接服务器"
+            )
             return
 
         try:
@@ -962,15 +1746,83 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
             if not self.window() or not self.window().isVisible():
                 return
 
-            reply = QtWidgets.QMessageBox.question(
-                self,
-                "确认删除",
-                f"确定要删除任务 {self._current_task_id[:16]}... 吗？",
-                QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
-                QtWidgets.QMessageBox.No
-            )
-            if reply == QtWidgets.QMessageBox.Yes:
-                self._manager.delete_task(self._current_task_id)
+            # 检查是否有选中的任务
+            if not self._selected_task_ids:
+                QtWidgets.QMessageBox.information(
+                    self,
+                    "提示",
+                    "请先勾选要删除的任务"
+                )
+                return
+
+            # 将选中任务分为运行中和非运行中两类
+            running_tasks = []
+            non_running_tasks = []
+            for task_id in list(self._selected_task_ids):
+                status = self._get_effective_task_status(task_id)
+                if status == "running":
+                    running_tasks.append(task_id)
+                else:
+                    non_running_tasks.append(task_id)
+
+            # 如果有运行中的任务，先询问是否停止
+            if running_tasks:
+                reply = QtWidgets.QMessageBox.warning(
+                    self,
+                    "确认删除",
+                    f"选中的任务中有 {len(running_tasks)} 个正在运行，删除前需要先停止这些任务。是否继续？",
+                    QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+                    QtWidgets.QMessageBox.No
+                )
+                if reply != QtWidgets.QMessageBox.Yes:
+                    return
+
+                # 用户确认，先停止运行中的任务
+                for task_id in running_tasks:
+                    try:
+                        self._set_task_action_state(task_id, "stopping")
+                        self._manager.stop_training(task_id)
+                        self._log(f"正在停止任务：{task_id[:16]}...")
+                    except Exception as e:
+                        self._clear_task_action_state(task_id)
+                        self._log(f"停止任务 {task_id[:16]}... 失败：{str(e)}", "error")
+
+                # 等待一小段时间让停止操作生效
+                QtCore.QThread.msleep(500)
+
+                # 删除所有选中的任务（包括运行中和非运行中）
+                count = 0
+                for task_id in list(self._selected_task_ids):
+                    try:
+                        self._manager.delete_task(task_id)
+                        count += 1
+                    except Exception as e:
+                        self._log(f"删除任务 {task_id[:16]}... 失败：{str(e)}", "error")
+
+                self._log(f"批量删除 {count} 个任务")
+                self._selected_task_ids.clear()
+                self._update_batch_buttons_state()
+            else:
+                # 没有运行中的任务，走正常的确认删除流程
+                reply = QtWidgets.QMessageBox.question(
+                    self,
+                    "确认批量删除",
+                    f"确定要删除选中的 {len(self._selected_task_ids)} 个任务吗？",
+                    QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+                    QtWidgets.QMessageBox.No
+                )
+                if reply == QtWidgets.QMessageBox.Yes:
+                    count = 0
+                    for task_id in list(self._selected_task_ids):
+                        try:
+                            self._manager.delete_task(task_id)
+                            count += 1
+                        except Exception as e:
+                            self._log(f"删除任务 {task_id[:16]}... 失败：{str(e)}", "error")
+
+                    self._log(f"批量删除 {count} 个任务")
+                    self._selected_task_ids.clear()
+                    self._update_batch_buttons_state()
         except Exception as e:
             self._log(f"删除任务异常：{str(e)}", "error")
 
@@ -997,16 +1849,15 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
             selected = self.task_table.selectedItems()
             if not selected:
                 self._current_task_id = None
-                self.delete_task_btn.setEnabled(False)
                 self.start_btn.setEnabled(False)
                 self.stop_btn.setEnabled(False)
                 return
 
             row = selected[0].row()
-            item = self.task_table.item(row, 0)
+            # 注意：现在任务ID在第1列（索引1），复选框在第0列
+            item = self.task_table.item(row, 1)
             if not item:
                 self._current_task_id = None
-                self.delete_task_btn.setEnabled(False)
                 self.start_btn.setEnabled(False)
                 self.stop_btn.setEnabled(False)
                 return
@@ -1014,13 +1865,11 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
             task_id = item.data(Qt.UserRole)
             if not task_id:
                 self._current_task_id = None
-                self.delete_task_btn.setEnabled(False)
                 self.start_btn.setEnabled(False)
                 self.stop_btn.setEnabled(False)
                 return
 
             self._current_task_id = task_id
-            self.delete_task_btn.setEnabled(True)
 
             task = self._tasks.get(task_id, {})
             status = task.get("status", "unknown")
@@ -1040,14 +1889,187 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
             # 安全截取任务 ID 字符串
             display_id = task_id[:16] + "..." if len(task_id) > 16 else task_id
             self.current_task_label.setText(display_id)
-            self.current_status_label.setText(status)
             self.monitor_btn.setVisible(not (total_epochs and epoch == total_epochs))
         except Exception as e:
             self._log(f"任务选择异常：{str(e)}", "error")
             self._current_task_id = None
-            self.delete_task_btn.setEnabled(False)
             self.start_btn.setEnabled(False)
             self.stop_btn.setEnabled(False)
+
+    def _on_checkbox_changed(self, item):
+        """复选框状态变化处理"""
+        try:
+            # 只处理第0列（复选框列）
+            if item.column() != 0:
+                return
+            
+            row = item.row()
+            checkbox_item = self.task_table.item(row, 0)
+            if not checkbox_item:
+                return
+            
+            # 获取任务ID
+            task_id_item = self.task_table.item(row, 1)
+            if not task_id_item:
+                return
+            
+            task_id = task_id_item.data(Qt.UserRole)
+            if not task_id:
+                return
+            
+            # 根据复选框状态更新选中集合
+            if checkbox_item.checkState() == Qt.Checked:
+                self._selected_task_ids.add(task_id)
+            else:
+                self._selected_task_ids.discard(task_id)
+            
+            # 更新批量操作按钮状态
+            self._update_batch_buttons_state()
+        except Exception as e:
+            logger.error(f"复选框状态变化处理异常：{e}")
+
+    def _update_batch_buttons_state(self):
+        """更新按钮状态 - 基于复选框选中的任务"""
+        has_selection = len(self._selected_task_ids) > 0
+        is_connected = self._manager and self._manager.is_connected()
+        
+        # 检查选中的任务中是否有可启动的（pending、stopped、failed 状态）
+        has_startable = False
+        # 检查选中的任务中是否有可停止的（running 状态）
+        has_stoppable = False
+        
+        for task_id in self._selected_task_ids:
+            task = self._tasks.get(task_id, {})
+            status = self._get_effective_task_status(task_id)
+            if status in ["pending", "stopped", "failed", "unknown"]:
+                has_startable = True
+            if status == "running":
+                has_stoppable = True
+        
+        # 更新启动按钮状态（有选中任务且至少有一个可启动的任务）
+        self.start_btn.setEnabled(has_selection and is_connected and has_startable)
+        
+        # 更新停止按钮状态（有选中任务且至少有一个可停止的任务）
+        self.stop_btn.setEnabled(has_selection and is_connected and has_stoppable)
+        
+        # 更新批量操作按钮状态（已隐藏但保留功能）
+        self.batch_start_btn.setEnabled(has_selection and is_connected)
+        self.batch_stop_btn.setEnabled(has_selection and is_connected)
+        self.batch_delete_btn.setEnabled(has_selection and is_connected)
+        
+        # 删除按钮始终保持激活，点击时在槽函数中检查
+        
+        # 更新全选按钮文本
+        if self.task_table.rowCount() > 0 and len(self._selected_task_ids) == self.task_table.rowCount():
+            self.select_all_btn.setText("取消")
+        else:
+            self.select_all_btn.setText("全选")
+
+    def _on_select_all_clicked(self):
+        """全选/取消全选按钮点击"""
+        try:
+            if self.select_all_btn.text() == "全选":
+                # 全选
+                self._selected_task_ids.clear()
+                for row in range(self.task_table.rowCount()):
+                    checkbox_item = self.task_table.item(row, 0)
+                    if checkbox_item:
+                        checkbox_item.setCheckState(Qt.Checked)
+                    task_id_item = self.task_table.item(row, 1)
+                    if task_id_item:
+                        task_id = task_id_item.data(Qt.UserRole)
+                        if task_id:
+                            self._selected_task_ids.add(task_id)
+                self.select_all_btn.setText("取消")
+            else:
+                # 取消全选
+                for row in range(self.task_table.rowCount()):
+                    checkbox_item = self.task_table.item(row, 0)
+                    if checkbox_item:
+                        checkbox_item.setCheckState(Qt.Unchecked)
+                self._selected_task_ids.clear()
+                self.select_all_btn.setText("全选")
+            
+            self._update_batch_buttons_state()
+        except Exception as e:
+            logger.error(f"全选操作异常：{e}")
+
+    def _on_batch_start_clicked(self):
+        """批量启动任务"""
+        if not self._selected_task_ids or not self._manager:
+            return
+        
+        if not self._manager.is_connected():
+            self._log("未连接到服务器", "error")
+            return
+        
+        try:
+            count = 0
+            for task_id in self._selected_task_ids:
+                task = self._tasks.get(task_id, {})
+                status = task.get("status", "unknown")
+                # 只启动处于 pending、stopped 或 failed 状态的任务
+                if status in ["pending", "stopped", "failed"]:
+                    self._manager.start_training(task_id)
+                    count += 1
+            
+            self._log(f"批量启动 {count} 个任务")
+        except Exception as e:
+            self._log(f"批量启动任务异常：{str(e)}", "error")
+
+    def _on_batch_stop_clicked(self):
+        """批量停止任务"""
+        if not self._selected_task_ids or not self._manager:
+            return
+        
+        if not self._manager.is_connected():
+            self._log("未连接到服务器", "error")
+            return
+        
+        try:
+            count = 0
+            for task_id in self._selected_task_ids:
+                task = self._tasks.get(task_id, {})
+                status = task.get("status", "unknown")
+                # 只停止处于 running 状态的任务
+                if status == "running":
+                    self._manager.stop_training(task_id)
+                    count += 1
+            
+            self._log(f"批量停止 {count} 个任务")
+        except Exception as e:
+            self._log(f"批量停止任务异常：{str(e)}", "error")
+
+    def _on_batch_delete_clicked(self):
+        """批量删除任务"""
+        if not self._selected_task_ids or not self._manager:
+            return
+        
+        if not self._manager.is_connected():
+            self._log("未连接到服务器", "error")
+            return
+        
+        try:
+            # 确认删除
+            reply = QtWidgets.QMessageBox.question(
+                self,
+                "确认批量删除",
+                f"确定要删除选中的 {len(self._selected_task_ids)} 个任务吗？",
+                QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+                QtWidgets.QMessageBox.No
+            )
+            
+            if reply == QtWidgets.QMessageBox.Yes:
+                count = 0
+                for task_id in list(self._selected_task_ids):
+                    self._manager.delete_task(task_id)
+                    count += 1
+                
+                self._log(f"批量删除 {count} 个任务")
+                self._selected_task_ids.clear()
+                self._update_batch_buttons_state()
+        except Exception as e:
+            self._log(f"批量删除任务异常：{str(e)}", "error")
 
     # ==================== Manager 相关 ====================
 
@@ -1101,7 +2123,6 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
                 self.refresh_btn.setEnabled(False)
                 self.get_status_btn.setEnabled(False)
                 self.monitor_btn.setEnabled(False)
-                self.delete_task_btn.setEnabled(False)
                 self.start_btn.setEnabled(False)
                 self.stop_btn.setEnabled(False)
                 self.task_table.setRowCount(0)
@@ -1141,25 +2162,39 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
         """训练启动成功"""
         try:
             if task_id:
+                self._clear_task_action_state(task_id)
+                self._clear_task_retry_state(task_id)
+                if task_id not in self._tasks:
+                    self._tasks[task_id] = {}
+                self._tasks[task_id]["status"] = "running"
                 self._current_task_id = task_id
                 self.training_status_label.setText("训练中...")
                 self.training_status_label.setVisible(True)
                 self._log(f"训练已启动：{task_id[:16]}...")
                 self.monitor_btn.setVisible(True)
                 self.monitor_btn.setText("监控训练")
+                self._update_batch_buttons_state()
                 # 延迟刷新任务列表（训练刚启动时服务器可能还未更新状态）
                 QtCore.QTimer.singleShot(500, self._on_refresh_clicked)
                 # 立即获取当前任务状态
                 if self._manager:
                     self._manager.get_task_status(task_id)
                 self._start_monitoring_task(task_id, auto_started=True)
+                # 启动自动刷新任务列表（确保表格进度与监控进度同步）
+                self._start_auto_refresh()
         except Exception:
             pass
 
     def _on_training_start_failed(self, task_id, error_msg):
         """训练启动失败"""
         try:
+            self._clear_task_action_state(task_id)
+            if task_id in self._tasks:
+                self._tasks[task_id]["status"] = "stopped"
+            self._task_retry_until[task_id] = time.monotonic() + 2.0
+            self._update_batch_buttons_state()
             self._log(f"启动训练失败：{error_msg}", "error")
+            self._handle_failed_start_tasks([task_id])
         except Exception:
             pass
 
@@ -1167,11 +2202,17 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
         """训练停止成功"""
         try:
             if task_id:
+                self._clear_task_action_state(task_id)
+                self._clear_task_retry_state(task_id)
+                if task_id not in self._tasks:
+                    self._tasks[task_id] = {}
+                self._tasks[task_id]["status"] = "stopped"
                 self.training_status_label.setText("训练已停止")
                 self._log(f"训练已停止：{task_id[:16]}...")
                 self.monitor_btn.setVisible(True)
                 self.monitor_btn.setEnabled(True)
                 self.monitor_btn.setText("监控训练")
+                self._update_batch_buttons_state()
                 self._on_refresh_clicked()
                 # 3秒后隐藏状态标签
                 QtCore.QTimer.singleShot(3000, lambda: self.training_status_label.setVisible(False))
@@ -1206,6 +2247,7 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
     def _on_task_list_updated(self, tasks):
         """任务列表更新"""
         try:
+            # 保存当前任务的进度信息到缓存（包括监控中的最新数据）
             cached_task_progress = {
                 task_id: {
                     "epoch": task.get("epoch", 0),
@@ -1215,6 +2257,29 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
                 }
                 for task_id, task in self._tasks.items()
             }
+            
+            # 如果当前有监控中的任务，确保使用最新的监控数据
+            if self._is_monitoring and self._monitor_target_task_id:
+                monitor_task_id = self._monitor_target_task_id
+                if monitor_task_id in self._tasks:
+                    monitor_task = self._tasks[monitor_task_id]
+                    cached_task_progress[monitor_task_id] = {
+                        "epoch": monitor_task.get("epoch", 0),
+                        "total_epochs": monitor_task.get("total_epochs", 0),
+                        "progress": monitor_task.get("progress", 0),
+                        "status": monitor_task.get("status", "unknown"),
+                    }
+            
+            valid_task_ids = {
+                task.get("task_id")
+                for task in tasks
+                if task.get("task_id") and task.get("task_id") != "unknown"
+            }
+            self._selected_task_ids.intersection_update(valid_task_ids)
+            if self._current_task_id and self._current_task_id not in valid_task_ids:
+                self._current_task_id = None
+
+            self.task_table.blockSignals(True)
             self.task_table.setRowCount(0)
             self._tasks.clear()
 
@@ -1225,33 +2290,42 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
                         continue
 
                     merged_task = dict(task)
+                    # 优先使用缓存中的数据（包含监控的最新进度）
                     if task_id in cached_task_progress:
-                        merged_task.update(cached_task_progress[task_id])
+                        cached_data = cached_task_progress[task_id]
+                        # 只有当缓存中有有效的 epoch/total_epochs 时才使用
+                        if cached_data.get("total_epochs", 0) > 0:
+                            merged_task["epoch"] = cached_data["epoch"]
+                            merged_task["total_epochs"] = cached_data["total_epochs"]
+                            merged_task["progress"] = cached_data["progress"]
+                        # 状态总是使用最新的
+                        if cached_data.get("status", "unknown") != "unknown":
+                            merged_task["status"] = cached_data["status"]
                     self._tasks[task_id] = merged_task
 
                     row = self.task_table.rowCount()
                     self.task_table.insertRow(row)
 
-                    # 任务 ID
+                    # 复选框列（第0列）
+                    checkbox_item = QtWidgets.QTableWidgetItem()
+                    checkbox_item.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled | Qt.ItemIsSelectable)
+                    # 如果该任务之前被选中，保持选中状态
+                    if task_id in self._selected_task_ids:
+                        checkbox_item.setCheckState(Qt.Checked)
+                    else:
+                        checkbox_item.setCheckState(Qt.Unchecked)
+                    checkbox_item.setTextAlignment(Qt.AlignCenter)
+                    self.task_table.setItem(row, 0, checkbox_item)
+
+                    # 任务 ID（第1列）
                     id_item = QtWidgets.QTableWidgetItem(task_id[:8] + "...")
                     id_item.setData(Qt.UserRole, task_id)
-                    self.task_table.setItem(row, 0, id_item)
-
-                    # 状态
-                    status = task.get("status", "unknown")
-                    status_item = QtWidgets.QTableWidgetItem(status)
-                    if status == "running":
-                        status_item.setForeground(QtGui.QColor("#4CAF50"))
-                    elif status == "completed":
-                        status_item.setForeground(QtGui.QColor("#2196F3"))
-                    elif status == "failed":
-                        status_item.setForeground(QtGui.QColor("#f44336"))
-                    self.task_table.setItem(row, 1, status_item)
+                    self.task_table.setItem(row, 1, id_item)
 
                     # 进度 - 优先使用 epoch/total_epochs 计算，与 monitor_training 一致
-                    # 先从内存中获取最新的 epoch 和 total_epochs
-                    saved_epoch = self._tasks.get(task_id, {}).get("epoch", 0)
-                    saved_total_epochs = self._tasks.get(task_id, {}).get("total_epochs", 0)
+                    # 使用合并后的任务数据（包含缓存的最新进度）
+                    saved_epoch = merged_task.get("epoch", 0)
+                    saved_total_epochs = merged_task.get("total_epochs", 0)
                     
                     if saved_total_epochs and saved_total_epochs > 0:
                         # 使用内存中保存的最新值
@@ -1268,11 +2342,11 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
                     progress_item = QtWidgets.QTableWidgetItem(f"{progress}%")
                     self.task_table.setItem(row, 2, progress_item)
 
-                    # 模型类型
+                    # 模型类型（第3列）
                     model_type = task.get("params", {}).get("model_type", "unknown")
                     self.task_table.setItem(row, 3, QtWidgets.QTableWidgetItem(model_type))
 
-                    # 创建时间 - 安全处理时间戳
+                    # 创建时间 - 安全处理时间戳（第4列）
                     start_time = task.get("start_time", 0)
                     if start_time:
                         try:
@@ -1286,7 +2360,12 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
                     # 单个任务解析失败，继续处理下一个
                     continue
 
-            self._log(f"任务列表已更新，共 {len(tasks)} 个任务")
+            # 只在手动刷新时输出日志
+            if not self._is_auto_refresh:
+                self._log(f"任务列表已更新，共 {len(tasks)} 个任务")
+            
+            # 更新按钮状态（基于复选框选中的任务）
+            self._update_batch_buttons_state()
         except Exception as e:
             self._log(f"任务列表更新异常：{str(e)}", "error")
 
@@ -1345,9 +2424,9 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
                 self._tasks[task_id]["epoch"] = epoch
                 self._tasks[task_id]["total_epochs"] = total_epochs
 
-                # 更新表格中的进度列
+                # 更新表格中的进度列（列索引2，因为复选框在第0列，任务ID在第1列）
                 for row in range(self.task_table.rowCount()):
-                    item = self.task_table.item(row, 0)
+                    item = self.task_table.item(row, 1)  # 任务ID在第1列
                     if item and item.data(Qt.UserRole) == task_id:
                         self.task_table.setItem(row, 2, QtWidgets.QTableWidgetItem(f"{progress_percent}%"))
                         logger.debug(f"更新任务列表进度：{task_id[:8]}... = {progress_percent}%")
@@ -1364,12 +2443,12 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
             
             # 打印状态到日志
             self._log(f"任务 {task_id[:16]}... 状态：{status}，进度：{progress*100:.1f}%")
-            
-            if task_id == self._current_task_id:
-                self.current_status_label.setText(status)
 
             if task_id in self._tasks:
                 self._tasks[task_id]["status"] = status
+                if status in ["running", "pending", "stopped", "failed", "completed"]:
+                    self._clear_task_retry_state(task_id)
+                self._clear_task_action_state(task_id)
                 # 不覆盖 progress，因为 progress_updated 已经更新了
                 
                 # 如果任务完成或失败，延迟刷新任务列表（防抖）
@@ -1401,6 +2480,188 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
                     self._stop_auto_refresh()
         except Exception:
             pass
+
+    def _handle_failed_stop_tasks(self, failed_tasks):
+        """处理停止失败的任务，刷新列表并清理服务端已不存在的任务"""
+        if not failed_tasks or not self._manager or not self._manager.is_connected():
+            return
+
+        try:
+            for task_id in failed_tasks:
+                self._log(f"查询任务 {task_id[:16]}... 在服务端的状态...")
+
+            self._manager.list_tasks()
+            QtCore.QTimer.singleShot(
+                500,
+                lambda task_ids=list(failed_tasks): self._cleanup_missing_tasks_after_stop_failure(task_ids),
+            )
+        except Exception as e:
+            self._log(f"查询停止失败任务状态异常：{str(e)}", "error")
+
+    def _cleanup_missing_tasks_after_stop_failure(self, task_ids):
+        """停止失败后，移除服务端已不存在任务的本地选中/详情状态"""
+        if not task_ids:
+            return
+
+        removed_count = 0
+        for task_id in task_ids:
+            if task_id in self._tasks:
+                continue
+
+            removed_count += 1
+            self._selected_task_ids.discard(task_id)
+
+            if self._current_task_id == task_id:
+                self._current_task_id = None
+                self.current_task_label.setText("无")
+                self.current_epoch_label.setText("-")
+                self.current_loss_label.setText("-")
+                self.current_accuracy_label.setText("-")
+                self.progress_bar.setValue(0)
+
+            self._log(f"任务 {task_id[:16]}... 在服务端不存在，已从任务列表移除", "warning")
+
+        if removed_count:
+            self._update_batch_buttons_state()
+
+    def _handle_failed_start_tasks(self, failed_tasks):
+        """处理启动失败的任务，刷新列表并清理服务端已不存在的任务"""
+        if not failed_tasks or not self._manager or not self._manager.is_connected():
+            return
+
+        try:
+            pending_tasks = []
+            for task_id in failed_tasks:
+                if task_id in self._task_server_check_pending:
+                    continue
+                self._task_server_check_pending.add(task_id)
+                pending_tasks.append(task_id)
+                self._log(f"查询任务 {task_id[:16]}... 在服务端的状态...", "warning")
+
+            if not pending_tasks:
+                return
+
+            self._update_batch_buttons_state()
+            self._manager.list_tasks()
+            QtCore.QTimer.singleShot(
+                500,
+                lambda task_ids=list(pending_tasks): self._cleanup_missing_tasks_after_start_failure(task_ids),
+            )
+        except Exception as e:
+            for task_id in failed_tasks:
+                self._task_server_check_pending.discard(task_id)
+            self._log(f"查询启动失败任务状态异常：{str(e)}", "error")
+
+    def _cleanup_missing_tasks_after_start_failure(self, task_ids):
+        """启动失败后，移除服务端已不存在的任务并提示用户"""
+        if not task_ids:
+            return
+
+        removed_task_ids = []
+        for task_id in task_ids:
+            self._task_server_check_pending.discard(task_id)
+            if task_id in self._tasks:
+                continue
+
+            removed_task_ids.append(task_id)
+            self._task_action_states.pop(task_id, None)
+            self._selected_task_ids.discard(task_id)
+
+            if self._current_task_id == task_id:
+                self._current_task_id = None
+                self.current_task_label.setText("无")
+                self.current_epoch_label.setText("-")
+                self.current_loss_label.setText("-")
+                self.current_accuracy_label.setText("-")
+                self.progress_bar.setValue(0)
+
+            self._log(f"任务 {task_id[:16]}... 在服务端不存在，已从任务列表移除", "warning")
+
+        if removed_task_ids:
+            self._update_batch_buttons_state()
+            task_text = "、".join(
+                [f"{task_id[:8]}..." if len(task_id) > 8 else task_id for task_id in removed_task_ids]
+            )
+            QtWidgets.QMessageBox.warning(
+                self,
+                "任务已删除",
+                f"任务 {task_text} 已被服务器删除，已从任务列表中移除。",
+            )
+        else:
+            self._update_batch_buttons_state()
+
+    def _on_training_stop_failed(self, task_id, error_msg):
+        """训练停止失败"""
+        try:
+            self._clear_task_retry_state(task_id)
+            self._clear_task_action_state(task_id)
+            if task_id in self._tasks and self._tasks[task_id].get("status") == "stopping":
+                self._tasks[task_id]["status"] = "running"
+            self._update_batch_buttons_state()
+            self._log(f"停止训练失败：{error_msg}", "error")
+            self._handle_failed_stop_tasks([task_id])
+        except Exception:
+            pass
+
+    def _update_batch_buttons_state(self):
+        """\u66f4\u65b0\u6309\u94ae\u72b6\u6001 - \u57fa\u4e8e\u590d\u9009\u6846\u9009\u4e2d\u7684\u4efb\u52a1"""
+        self.task_table.blockSignals(False)
+        has_selection = len(self._selected_task_ids) > 0
+        is_connected = self._manager and self._manager.is_connected()
+
+        has_startable = False
+        has_stoppable = False
+
+        for task_id in self._selected_task_ids:
+            task = self._tasks.get(task_id, {})
+            status = task.get("status", "unknown")
+            if status in ["pending", "stopped", "failed", "unknown"]:
+                has_startable = True
+            if status == "running":
+                has_stoppable = True
+
+        self.start_btn.setEnabled(has_selection and is_connected and has_startable)
+        self.stop_btn.setEnabled(has_selection and is_connected and has_stoppable)
+        self.batch_start_btn.setEnabled(has_selection and is_connected)
+        self.batch_stop_btn.setEnabled(has_selection and is_connected)
+        self.batch_delete_btn.setEnabled(has_selection and is_connected)
+
+        if self.task_table.rowCount() > 0 and len(self._selected_task_ids) == self.task_table.rowCount():
+            self.select_all_btn.setText("\u53d6\u6d88")
+        else:
+            self.select_all_btn.setText("\u5168\u9009")
+
+    def _get_effective_task_status(self, task_id):
+        """获取任务当前有效状态，优先使用本地瞬时状态"""
+        if task_id in self._task_server_check_pending:
+            return "start_checking"
+
+        retry_until = self._task_retry_until.get(task_id)
+        if retry_until and retry_until > time.monotonic():
+            return "start_cooldown"
+        if retry_until and retry_until <= time.monotonic():
+            self._task_retry_until.pop(task_id, None)
+
+        transient_status = self._task_action_states.get(task_id)
+        if transient_status:
+            return transient_status
+        return self._tasks.get(task_id, {}).get("status", "unknown")
+
+    def _set_task_action_state(self, task_id, state):
+        """设置任务瞬时操作状态"""
+        self._task_action_states[task_id] = state
+        if task_id not in self._tasks:
+            self._tasks[task_id] = {}
+        self._tasks[task_id]["status"] = state
+
+    def _clear_task_action_state(self, task_id):
+        """清理任务瞬时操作状态"""
+        self._task_action_states.pop(task_id, None)
+
+    def _clear_task_retry_state(self, task_id):
+        """清理任务失败后的重试限制状态"""
+        self._task_retry_until.pop(task_id, None)
+        self._task_server_check_pending.discard(task_id)
 
     def _on_error(self, error_msg):
         """错误发生"""
@@ -1440,10 +2701,47 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
     def cleanup(self):
         """清理资源"""
         try:
+            # 停止定时器
+            if hasattr(self, '_refresh_timer') and self._refresh_timer:
+                self._refresh_timer.stop()
+            if hasattr(self, '_auto_refresh_timer') and self._auto_refresh_timer:
+                self._auto_refresh_timer.stop()
+            
+            # 清理管理器
             if self._manager:
                 self._manager.cleanup()
             self._manager = None
             self._tasks.clear()
             self._current_task_id = None
+            
+            # 关闭训练服务器进程
+            self._terminate_training_server()
         except Exception:
             pass
+
+    def _terminate_training_server(self):
+        """终止训练服务器进程"""
+        try:
+            if self._server_process is not None:
+                # 先尝试优雅终止
+                self._server_process.terminate()
+                try:
+                    self._server_process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    # 超时则强制杀死
+                    self._server_process.kill()
+                    self._server_process.wait(timeout=3)
+                self._server_process = None
+                logger.info("训练服务器进程已关闭")
+        except Exception as e:
+            logger.warning(f"关闭训练服务器进程时出错: {e}")
+            # 如果通过句柄关闭失败，尝试用 taskkill 强制结束
+            try:
+                subprocess.run(
+                    ["taskkill", "/F", "/IM", "training_server.exe"],
+                    capture_output=True,
+                    timeout=5
+                )
+            except Exception:
+                pass
+            self._server_process = None
