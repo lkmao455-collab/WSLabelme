@@ -278,11 +278,54 @@ def main():
             output_dir = output
 
     translator = QtCore.QTranslator()
+    # 永久使用中文界面，不依赖系统语言设置
     translator.load(
-        QtCore.QLocale.system().name(),
+        "zh_CN",
         osp.dirname(osp.abspath(__file__)) + "/translate",
     )
     app = QtWidgets.QApplication(sys.argv)
+    
+    # 检查管理员权限（Windows）
+    if os.name == "nt":
+        import ctypes
+        import subprocess
+        
+        if not ctypes.windll.shell32.IsUserAnAdmin():
+            QtWidgets.QMessageBox.warning(
+                None,
+                "权限不足",
+                "本程序需要以管理员权限运行！\n\n"
+                "请右键点击程序，选择「以管理员身份运行」。",
+                QtWidgets.QMessageBox.Ok,
+            )
+            return 1
+        
+        # 有管理员权限，关闭旧服务进程
+        try:
+            # 先检查是否有 training_server.exe 进程在运行
+            result = subprocess.run(
+                ["tasklist", "/FI", "IMAGENAME eq training_server.exe", "/NH"],
+                capture_output=True,
+                text=True,
+                encoding="gbk",
+                errors="ignore"
+            )
+            if "training_server.exe" in result.stdout:
+                # 弹窗提示关闭旧服务
+                QtWidgets.QMessageBox.information(
+                    None,
+                    "关闭旧服务",
+                    "正在关闭旧服务进程...",
+                    QtWidgets.QMessageBox.Ok,
+                )
+                # 强制结束 training_server.exe 进程
+                subprocess.run(
+                    ["taskkill", "/F", "/IM", "training_server.exe"],
+                    capture_output=True,
+                    check=False
+                )
+        except Exception as e:
+            logger.warning(f"关闭旧服务进程时出错: {e}")
     
     # 检查是否已有实例在运行（必须在QApplication创建之后）
     can_start, shared_mem = check_single_instance()

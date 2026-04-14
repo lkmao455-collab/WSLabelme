@@ -438,7 +438,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         saveAuto = action(
             text=self.tr("Save &Automatically"),
-            slot=lambda x: self.actions.saveAuto.setChecked(x),
+            slot=None,
             icon="save",
             tip=self.tr("Save automatically"),
             checkable=True,
@@ -1042,35 +1042,38 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.tools = self.toolbar("Tools")
         self.actions.tool = (
-            open_,
-            opendir,
-            openPrevImg,
-            openNextImg,
-            save,
-            deleteFile,
+            opendir,  
+            # openPrevImg,  # 隐藏上一幅按钮
+            # openNextImg,  # 隐藏下一幅按钮
+            save,  # 隐藏保存按钮
+            saveAuto,
+            # deleteFile,  # 隐藏删除按钮
             None,
-            createMode,
-            editMode,
-            duplicate,
-            delete,
+            # createMode,  # 隐藏创建多边形按钮
+            # editMode,  # 隐藏编辑多边形按钮
+            # duplicate,  # 隐藏复制多边形按钮
+            # delete,  # 隐藏删除多边形按钮
             createRectangleMode,
             editRectangleMode,
             duplicateRectangle,
             deleteRectangle,
-            undo,
-            brightnessContrast,
-            formatConvert,
+            # undo,  # 隐藏撤销按钮
+            # brightnessContrast,  # 隐藏亮度对比度按钮
+            # formatConvert,  # 隐藏格式转换按钮
             None,
-            fitWindow,
-            zoom,
+            fitWindow,            
+            # zoom,
+            #None,
+            # selectAiModel,
             None,
-            selectAiModel,
-            None,
-            ai_prompt_action,
+            # ai_prompt_action,
         )
 
         self.statusBar().showMessage(str(self.tr("%s started.")) % __appname__)
         self.statusBar().show()
+
+        # 隐藏顶部菜单栏
+        self.menuBar().setVisible(False)
 
         if output_file is not None and self._config["auto_save"]:
             logger.warning(
@@ -1123,14 +1126,17 @@ class MainWindow(QtWidgets.QMainWindow):
         position = self.settings.value("window/position", QtCore.QPoint(0, 0))
         state = self.settings.value("window/state", QtCore.QByteArray())
         
-        # 智能屏幕检测：检查窗口位置是否在有效屏幕上
-        adjusted_position = self._adjustWindowPosition(position, size)
+        # 每次启动都定位到主屏幕中间，防止窗口出现在屏幕外
+        adjusted_position, adjusted_size = self._adjustWindowPosition(position, size)
         
-        self.resize(size)
+        self.resize(adjusted_size)
         self.move(adjusted_position)
         # or simply:
         # self.restoreGeometry(settings['window/geometry']
         self.restoreState(state)
+        # 再次强制将窗口定位到主屏幕中间，防止 restoreState 将其移到副屏
+        # restoreState 会恢复之前保存的窗口位置，可能位于副屏，这里覆盖它
+        self.move(adjusted_position)
         # 确保工具栏始终可见，避免 restoreState 恢复隐藏状态导致工具栏消失
         if hasattr(self, 'tools') and self.tools is not None:
             self.tools.setVisible(True)
@@ -1182,51 +1188,52 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _adjustWindowPosition(self, position, size):
         """
-        智能屏幕检测：检查窗口位置是否在有效屏幕上
-        
-        当应用程序启动时，检查指定的窗口位置是否在任何可用屏幕上。
-        如果不在任何屏幕上，则将窗口移动到主屏幕的中心位置。
+        每次启动都将窗口定位到主屏幕中间，防止窗口出现在屏幕外。
         
         Args:
-            position: 窗口位置的QPoint对象
+            position: 窗口位置的QPoint对象（保留参数，不再使用）
             size: 窗口大小的QSize对象
             
         Returns:
-            QtCore.QPoint: 调整后的窗口位置
+            tuple(QtCore.QPoint, QtCore.QSize): 调整后的窗口位置和尺寸
         """
         # 获取可用屏幕列表
         screens = QtWidgets.QApplication.screens()
+        screen_count = len(screens) if screens else 0
+        logger.info(f"检测到屏幕数量：{screen_count}")
         
-        # 如果没有屏幕，使用默认位置
+        # 如果没有屏幕，返回原始值
         if not screens:
-            return position
+            return position, size
         
-        # 检查当前窗口位置是否在任何屏幕上
-        window_rect = QtCore.QRect(position, size)
-        screen_found = False
+        # 始终使用主屏幕居中
+        main_screen = QtWidgets.QApplication.primaryScreen()
+        if not main_screen:
+            return position, size
         
-        for screen in screens:
-            screen_geometry = screen.availableGeometry()
-            # 检查窗口是否与屏幕有交集
-            if window_rect.intersects(screen_geometry):
-                screen_found = True
-                break
+        screen_geometry = main_screen.availableGeometry()
         
-        # 如果窗口位置不在任何屏幕上，移动到主屏幕中心
-        if not screen_found:
-            logger.info("窗口位置不在有效屏幕上，调整到主屏幕中心")
-            main_screen = QtWidgets.QApplication.primaryScreen()
-            if main_screen:
-                screen_geometry = main_screen.availableGeometry()
-                # 计算居中位置
-                x = screen_geometry.center().x() - size.width() // 2
-                y = screen_geometry.center().y() - size.height() // 2
-                # 确保窗口不会超出屏幕边界
-                x = max(screen_geometry.left(), min(x, screen_geometry.right() - size.width()))
-                y = max(screen_geometry.top(), min(y, screen_geometry.bottom() - size.height()))
-                return QtCore.QPoint(x, y)
+        # 如果窗口尺寸大于屏幕可用区域，则缩小以适应屏幕
+        new_width = min(size.width(), screen_geometry.width())
+        new_height = min(size.height(), screen_geometry.height())
+        if new_width != size.width() or new_height != size.height():
+            logger.info(
+                f"窗口尺寸 ({size.width()}x{size.height()}) 超出屏幕可用区域 "
+                f"({screen_geometry.width()}x{screen_geometry.height()})，已自动缩小"
+            )
+        adjusted_size = QtCore.QSize(new_width, new_height)
         
-        return position
+        # 计算居中位置
+        x = screen_geometry.center().x() - adjusted_size.width() // 2
+        y = screen_geometry.center().y() - adjusted_size.height() // 2
+        # 确保窗口完全在屏幕范围内
+        x = max(screen_geometry.left(), min(x, screen_geometry.right() - adjusted_size.width()))
+        y = max(screen_geometry.top(), min(y, screen_geometry.bottom() - adjusted_size.height()))
+        
+        logger.info(
+            f"窗口定位到主屏幕中间：位置=({x}, {y})，尺寸=({adjusted_size.width()}x{adjusted_size.height()})"
+        )
+        return QtCore.QPoint(x, y), adjusted_size
 
     def _on_tcp_status_changed(self, connected: bool, message: str):
         """TCP 连接状态改变时的回调函数"""
@@ -1538,7 +1545,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Even if we autosave the file, we keep the ability to undo
         self.actions.undo.setEnabled(self.canvas.isShapeRestorable)
 
-        if self._config["auto_save"] or self.actions.saveAuto.isChecked():
+        if self.actions.saveAuto.isChecked():
             label_file = osp.splitext(self.imagePath)[0] + ".json"
             if self.output_dir:
                 label_file_without_path = osp.basename(label_file)
@@ -3135,7 +3142,7 @@ class MainWindow(QtWidgets.QMainWindow):
         config_dir = osp.dirname(config_file)
 
         # Case 1: The config directory changed, check if the config file was created.
-        if path == config_dir and osp.exists(config_file):
+        if osp.normpath(path) == osp.normpath(config_dir) and osp.exists(config_file):
             logger.info("Config file created: {}", config_file)
             # Stop watching the directory and start watching the file.
             self.fileWatcher.removePath(config_dir)
@@ -3145,49 +3152,136 @@ class MainWindow(QtWidgets.QMainWindow):
             return
 
         # Case 2: The images folder changed.
-        if path == self.defaultImagesFolder or path == self.lastOpenDir:
+        norm_path = osp.normpath(osp.abspath(path))
+        norm_default = osp.normpath(osp.abspath(self.defaultImagesFolder)) if self.defaultImagesFolder else ""
+        norm_last = osp.normpath(osp.abspath(self.lastOpenDir)) if self.lastOpenDir else ""
+
+        if norm_path == norm_default or norm_path == norm_last:
             logger.info("Images folder changed: {}", path)
             # Use a small delay to avoid multiple rapid updates
             QtCore.QTimer.singleShot(500, functools.partial(self._refreshFileList, path))
     
     def _refreshFileList(self, folder_path):
-        """Refresh the file list for the given folder and select the newest file."""
+        """Refresh the file list for the given folder, handle both new files and deleted files."""
         if not folder_path or not osp.exists(folder_path) or not osp.isdir(folder_path):
             return
 
-        # Only refresh if this is the current directory
-        if folder_path == self.lastOpenDir:
+        # Only refresh if this is the current directory (normalize paths to handle / vs \ and case)
+        if osp.normpath(folder_path) == osp.normpath(self.lastOpenDir or ""):
             logger.info("Refreshing file list for: {}", folder_path)
 
-            # Get list of files before refresh to find the new one
-            old_files = set(self.imageList)
+            # Get list of files before refresh (normalize paths to avoid format mismatch)
+            old_files = set(osp.normpath(p) for p in self.imageList)
 
-            # Reload the file list but don't load any image yet
-            self.importDirImages(folder_path, load=False)
+            # Scan for current images in the directory
+            extensions = [
+                ".%s" % fmt.data().decode().lower()
+                for fmt in QtGui.QImageReader.supportedImageFormats()
+            ]
 
-            # Get the new list of files
-            new_files = set(self.imageList)
+            current_files = set()
+            for root, dirs, files in os.walk(folder_path):
+                for file in files:
+                    if file.lower().endswith(tuple(extensions)):
+                        file_path = osp.normpath(osp.join(root, file))
+                        current_files.add(file_path)
 
-            # Find the newest file by modification time among all files
-            newest_file_path = None
-            latest_mtime = 0
-            if self.imageList:
-                try:
-                    # Sort files by modification time to find the latest one
-                    sorted_files = sorted(self.imageList, key=osp.getmtime, reverse=True)
-                    newest_file_path = sorted_files[0]
-                except (OSError, IndexError) as e:
-                    logger.error("Could not determine newest file: {}", e)
-                    return
+            # Find deleted files (in old_files but not in current_files)
+            deleted_files = old_files - current_files
+            # Find new files (in current_files but not in old_files)
+            new_files = list(current_files - old_files)
 
-            if newest_file_path:
-                logger.info("Newest file detected: {}", newest_file_path)
-                # 缩略图列表不支持 findItems，直接使用 setCurrentFile
-                if newest_file_path in self.fileListWidget.file_paths:
-                    self.fileListWidget.setCurrentFile(newest_file_path)
-                    self.status(self.tr("New file detected, loading: %s") % osp.basename(newest_file_path))
+            # Map normalized paths back to original paths in imageList for removeFile
+            norm_to_orig = {osp.normpath(p): p for p in self.imageList}
+            deleted_files_orig = set(norm_to_orig.get(p, p) for p in deleted_files)
+
+            # Handle deleted files first
+            if deleted_files:
+                logger.info("Detected {} deleted file(s) in folder: {}", len(deleted_files), folder_path)
+
+                # Check if current file was deleted
+                current_file_deleted = self.filename and osp.normpath(self.filename) in deleted_files
+
+                # Get the file to switch to before removing files
+                switch_to_file = None
+                if current_file_deleted:
+                    # Try to get the previous file first
+                    switch_to_file = self.fileListWidget.getPreviousFile(self.filename)
+                    if not switch_to_file:
+                        # No previous file, try next file
+                        switch_to_file = self.fileListWidget.getNextFile(self.filename)
+                    logger.info("Current file was deleted, will switch to: {}", switch_to_file)
+
+                # Remove deleted files from the list (use original paths for removeFile)
+                for file_path in deleted_files_orig:
+                    self.fileListWidget.removeFile(file_path)
+                    logger.debug("Removed file from list: {}", file_path)
+
+                # If current file was deleted, switch to another file
+                if current_file_deleted:
+                    if switch_to_file and switch_to_file in self.fileListWidget.file_paths:
+                        self.filename = switch_to_file
+                        self.loadFile(self.filename)
+                        logger.info("Switched to file after deletion: {}", self.filename)
+                    elif self.fileListWidget.file_paths:
+                        # Fallback: switch to the first file
+                        self.filename = self.fileListWidget.file_paths[0]
+                        self.loadFile(self.filename)
+                        logger.info("Switched to first file after deletion: {}", self.filename)
+                    else:
+                        # No files left
+                        self.closeFile()
+                        self.actions.openNextImg.setEnabled(False)
+                        self.actions.openPrevImg.setEnabled(False)
+                        logger.info("All files deleted, closed current file")
+                        return
+
+                self.status(self.tr("Removed %d deleted file(s) from the list") % len(deleted_files))
+
+            # If no new files, we're done
+            if not new_files:
+                logger.debug("No new files detected in folder: {}", folder_path)
+                return
+
+            logger.info("Detected {} new file(s) in folder: {}", len(new_files), folder_path)
+
+            # Sort new files: labeled first, then unlabeled
+            new_labeled = []
+            new_unlabeled = []
+            for file_path in new_files:
+                label_file = osp.splitext(file_path)[0] + ".json"
+                if self.output_dir:
+                    label_file = osp.join(self.output_dir, osp.basename(label_file))
+                if osp.exists(label_file):
+                    new_labeled.append(file_path)
+                else:
+                    new_unlabeled.append(file_path)
+
+            # Add new files to the end of the list (after existing files)
+            sorted_new_files = new_labeled + new_unlabeled
+            start_index = len(self.fileListWidget.file_paths) + 1
+
+            for idx, file_path in enumerate(sorted_new_files):
+                label_file = osp.splitext(file_path)[0] + ".json"
+                if self.output_dir:
+                    label_file = osp.join(self.output_dir, osp.basename(label_file))
+                is_labeled = osp.exists(label_file)
+                self.fileListWidget.addFile(file_path, index=start_index + idx, is_labeled=is_labeled)
+
+            # Update actions state
+            if len(self.fileListWidget.file_paths) > 1:
+                self.actions.openNextImg.setEnabled(True)
+                self.actions.openPrevImg.setEnabled(True)
+
+            # Keep the current file selection, do not jump to new files
+            if self.filename and self.filename in self.fileListWidget.file_paths:
+                self.fileListWidget.setCurrentFile(self.filename)
+                logger.info("Added {} new file(s) to the end of list, keeping current file: {}",
+                           len(new_files), self.filename)
             else:
-                self.status(self.tr("File list updated"))
+                logger.info("Added {} new file(s) to the end of list", len(new_files))
+
+            self.status(self.tr("Added %d new file(s) to the list") % len(new_files))
 
     def toggleKeepPrevMode(self):
         self._config["keep_prev"] = not self._config["keep_prev"]

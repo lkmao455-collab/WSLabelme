@@ -325,18 +325,21 @@ class ThumbnailFileList(QtWidgets.QWidget):
     
     def setCurrentFile(self, file_path):
         """设置当前选中的文件"""
-        self.current_file = file_path
+        # 规范化路径以便正确匹配
+        normalized_path = osp.normpath(osp.abspath(file_path))
+        self.current_file = normalized_path
 
         for item in self.items:
-            item.setSelected(item.file_path == file_path)
+            item.setSelected(osp.normpath(osp.abspath(item.file_path)) == normalized_path)
 
         # 延迟滚动到选中项，确保布局已更新
         QtCore.QTimer.singleShot(50, lambda: self._scrollToFile(file_path))
 
     def _scrollToFile(self, file_path):
         """滚动到指定文件位置"""
+        normalized_path = osp.normpath(osp.abspath(file_path))
         for item in self.items:
-            if item.file_path == file_path:
+            if osp.normpath(osp.abspath(item.file_path)) == normalized_path:
                 self.scroll_area.ensureWidgetVisible(item, 50, 0)
                 break
     
@@ -366,8 +369,10 @@ class ThumbnailFileList(QtWidgets.QWidget):
     
     def currentRow(self):
         """获取当前选中的行（兼容旧接口）"""
-        if self.current_file and self.current_file in self.file_paths:
-            return self.file_paths.index(self.current_file)
+        if self.current_file:
+            for i, fp in enumerate(self.file_paths):
+                if osp.normpath(osp.abspath(fp)) == osp.normpath(osp.abspath(self.current_file)):
+                    return i
         return -1
     
     def repaint(self):
@@ -387,11 +392,14 @@ class ThumbnailFileList(QtWidgets.QWidget):
 
     def setFileLabeled(self, file_path, is_labeled=True):
         """设置指定文件的标注状态，并在变为已标注时移动到已标注区域最右边"""
+        # 规范化路径以便正确匹配
+        normalized_target_path = osp.normpath(osp.abspath(file_path))
+
         # 找到对应的项
         target_item = None
         target_index = -1
         for i, item in enumerate(self.items):
-            if item.file_path == file_path:
+            if osp.normpath(osp.abspath(item.file_path)) == normalized_target_path:
                 target_item = item
                 target_index = i
                 break
@@ -410,7 +418,7 @@ class ThumbnailFileList(QtWidgets.QWidget):
 
         # 如果变为已标注，将其移动到已标注区域的最右边
         # 但如果是当前正在查看的文件，不移动它（避免索引错乱）
-        if is_labeled and target_index >= 0 and file_path != self.current_file:
+        if is_labeled and target_index >= 0 and normalized_target_path != self.current_file:
             # 找到最后一个已标注文件的位置
             last_labeled_index = -1
             for i, item in enumerate(self.items):
@@ -426,7 +434,7 @@ class ThumbnailFileList(QtWidgets.QWidget):
                 # 插入到已标注区域最后（即 last_labeled_index+1 位置）
                 insert_pos = last_labeled_index + 1
                 self.items.insert(insert_pos, target_item)
-                self.file_paths.insert(insert_pos, file_path)
+                self.file_paths.insert(insert_pos, target_item.file_path)
 
                 # 从布局中移除并重新插入
                 self.container_layout.removeWidget(target_item)
@@ -436,6 +444,62 @@ class ThumbnailFileList(QtWidgets.QWidget):
                 self._updateIndices()
 
                 # 注意：不在这里滚动，由 setCurrentFile 统一处理滚动
+
+    def removeFile(self, file_path):
+        """从列表中移除指定文件"""
+        normalized_path = osp.normpath(osp.abspath(file_path))
+
+        # 找到对应的项
+        target_index = -1
+        for i, item in enumerate(self.items):
+            if osp.normpath(osp.abspath(item.file_path)) == normalized_path:
+                target_index = i
+                break
+
+        if target_index < 0:
+            return False  # 文件不在列表中
+
+        # 获取要删除的项
+        target_item = self.items[target_index]
+
+        # 从布局中移除
+        self.container_layout.removeWidget(target_item)
+        target_item.deleteLater()
+
+        # 从列表中移除
+        self.items.pop(target_index)
+        self.file_paths.pop(target_index)
+
+        # 如果删除的是当前选中的文件，清除当前选中
+        if self.current_file == normalized_path:
+            self.current_file = None
+
+        # 更新所有项的序号
+        self._updateIndices()
+
+        return True
+
+    def getPreviousFile(self, file_path):
+        """获取指定文件的前一个文件路径"""
+        normalized_path = osp.normpath(osp.abspath(file_path))
+
+        for i, fp in enumerate(self.file_paths):
+            if osp.normpath(osp.abspath(fp)) == normalized_path:
+                if i > 0:
+                    return self.file_paths[i - 1]
+                break
+        return None
+
+    def getNextFile(self, file_path):
+        """获取指定文件的后一个文件路径"""
+        normalized_path = osp.normpath(osp.abspath(file_path))
+
+        for i, fp in enumerate(self.file_paths):
+            if osp.normpath(osp.abspath(fp)) == normalized_path:
+                if i < len(self.file_paths) - 1:
+                    return self.file_paths[i + 1]
+                break
+        return None
 
     def _updateIndices(self):
         """更新所有项的序号显示"""

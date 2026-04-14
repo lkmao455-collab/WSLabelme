@@ -15,6 +15,7 @@ import sys
 import time
 import subprocess
 import socket
+import threading
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 from loguru import logger
@@ -129,6 +130,8 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
         self._task_server_check_pending = set()  # 记录正在查询服务端状态的任务
         self._is_auto_refresh = False  # 标记是否为自动刷新
         self._server_process = None  # 训练服务器进程句柄
+        self._is_starting_server = False  # 标记是否正在启动服务器，防止重复启动
+        self._server_start_lock = threading.Lock()  # 用于防止并发启动的锁
         
         # 训练历史数据
         self._training_history = {
@@ -244,7 +247,8 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
         self.basic_group = CollapsibleGroupBox("基本信息")
 
         self.task_type_combo = QtWidgets.QComboBox()
-        self.task_type_combo.addItems(["目标检测 (detect)", "图像分类 (classify)", "语义分割 (segment)"])
+        # self.task_type_combo.addItems(["目标检测 (detect)", "图像分类 (classify)", "语义分割 (segment)"])
+        self.task_type_combo.addItems(["目标检测 (detect)"])
         self.basic_group.addRow("任务类型：", self.task_type_combo)
 
         # 数据集路径选择
@@ -308,7 +312,7 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
         # 批次大小
         self.batch_combo = QtWidgets.QComboBox()
         self.batch_combo.addItems(["8", "16", "32", "64", "128"])
-        self.batch_combo.setCurrentText("32")
+        self.batch_combo.setCurrentText("16")
         self.param_group.addRow("批次大小：", self.batch_combo)
 
         # 学习率
@@ -573,7 +577,8 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
         # 刷新间隔控制
         refresh_interval_layout = QtWidgets.QHBoxLayout()
         refresh_interval_layout.setSpacing(4)
-        refresh_interval_layout.addWidget(QtWidgets.QLabel("刷新间隔:"))
+        self.refresh_label = QtWidgets.QLabel("刷新间隔:")
+        refresh_interval_layout.addWidget(self.refresh_label)
         self.refresh_interval_spin = QtWidgets.QSpinBox()
         self.refresh_interval_spin.setRange(1, 10)
         self.refresh_interval_spin.setValue(2)
@@ -684,6 +689,11 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
         self.clear_log_btn.clicked.connect(self._on_clear_log_clicked)
         self.refresh_interval_spin.valueChanged.connect(self._on_refresh_interval_changed)
         self.task_table.itemChanged.connect(self._on_checkbox_changed)
+        self.get_status_btn.setVisible(False)
+        self.refresh_btn.setVisible(False)
+        self.monitor_btn.setVisible(False)
+        self.refresh_label.setVisible(False)
+        self.refresh_interval_spin.setVisible(False)
 
     # ==================== 训练配置相关方法 ====================
 
@@ -761,7 +771,7 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
 
     def _find_training_server_exe(self):
         """查找 training_server.exe 的路径"""
-        exe_name = "training_server.exe"
+        exe_name = "TrainServer\\training_server.exe"  # Changed from training_server.exe to TrainServer\\training_server.exe
         
         # 1. 如果是打包环境，在 exe 所在目录查找
         if getattr(sys, 'frozen', False):
@@ -781,65 +791,177 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
         # 3. 检查 training_client/training_server.exe
         exe_path = os.path.join(project_root, "training_client", exe_name)
         if os.path.exists(exe_path):
+            self._log(f"找到 {exe_name}：{exe_path}", "info")
             return exe_path
-        
+        else:
+            self._log(f"未找到 {exe_name}", "warning")
         return None
 
     def _is_training_server_running(self):
         """检查 training_server.exe 是否正在运行（Windows）"""
         try:
+            # 方法1: 使用 tasklist 检测
             result = subprocess.run(
                 ["tasklist", "/FI", "IMAGENAME eq training_server.exe"],
                 capture_output=True,
                 text=True,
+                encoding="gbk",
+                errors="ignore",
                 timeout=5
             )
-            return "training_server.exe" in result.stdout
-        except Exception:
+            tasklist_found = "training_server.exe" in result.stdout
+            
+            # 方法2: 检查我们记录的进程是否还在运行
+            process_found = False
+            if self._server_process is not None:
+                try:
+                    poll_result = self._server_process.poll()
+                    if poll_result is None:
+                        process_found = True
+                except Exception:
+                    pass
+            
+            is_running = tasklist_found or process_found
+            self._log(f"[进程检测] tasklist: {tasklist_found}, 进程句柄: {process_found}, 最终结果: {is_running}")
+            return is_running
+        except Exception as e:
+            self._log(f"[进程检测] 检测异常: {e}", "error")
             return False
 
     def _ensure_server_running(self, host, port):
         """
-        确保训练服务器正在运行
+        确保训练服务器正在运行并可连接
         如果未运行则启动它并显示进度对话框等待
         返回 True 表示服务器已就绪，False 表示失败
 
         注意：此对话框会保持打开直到 manager 真正连接成功，
         因为训练服务器可能需要3-5分钟时间才能完全启动
         """
-        # 先检查是否已经在运行
-        if self._is_training_server_running():
-            return True
+        server_started_by_us = False
+        server_pid = None  # 记录启动的服务器进程ID
 
-        # 查找 exe 路径
-        exe_path = self._find_training_server_exe()
-        if not exe_path:
-            QtWidgets.QMessageBox.critical(
-                self,
-                "错误",
-                "训练服务器不存在"
-            )
-            sys.exit(1)
-            return False
+        # 使用锁防止并发调用导致重复启动
+        # 锁保护范围：从进程检测到进程启动的整个关键路径
+        with self._server_start_lock:
+            if self._is_starting_server:
+                self._log("[服务器启动检查] 服务器正在启动中，忽略重复请求")
+                return False
+            self._is_starting_server = True
 
-        # 启动服务器进程
-        try:
-            self._server_process = subprocess.Popen(
-                [exe_path],
-                creationflags=subprocess.CREATE_NO_WINDOW
-            )
-        except Exception as e:
-            QtWidgets.QMessageBox.critical(
-                self,
-                "启动失败",
-                f"无法启动训练服务器：{str(e)}"
-            )
-            return False
+            try:
+                # 先检查是否已经在运行（进程级别）
+                process_was_running = self._is_training_server_running()
+                self._log(f"[服务器启动检查] 进程检查: {'正在运行' if process_was_running else '未运行'}")
+
+                # 如果 tasklist 检测到进程存在，进一步验证端口是否可达
+                # 防止僵尸进程或残留进程导致误判
+                if process_was_running and self._server_process is None:
+                    try:
+                        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        sock.settimeout(2)
+                        port_result = sock.connect_ex((host, port))
+                        sock.close()
+                        if port_result != 0:
+                            self._log(f"[服务器启动检查] 进程存在但端口 {port} 不可达，判定为残留进程，尝试清理并重启", "warning")
+                            # 杀掉残留进程
+                            try:
+                                subprocess.run(
+                                    ["taskkill", "/F", "/IM", "training_server.exe"],
+                                    capture_output=True, timeout=5
+                                )
+                                time.sleep(0.5)
+                                self._log("[服务器启动检查] 已清理残留进程")
+                            except Exception as kill_e:
+                                self._log(f"[服务器启动检查] 清理残留进程失败: {kill_e}", "warning")
+                            process_was_running = False
+                        else:
+                            self._log(f"[服务器启动检查] 端口 {port} 可达，进程正常运行")
+                    except Exception as sock_e:
+                        self._log(f"[服务器启动检查] 端口验证异常: {sock_e}，按进程不可用处理", "warning")
+                        process_was_running = False
+
+                need_start = True  # 是否需要启动新进程
+
+                if not process_was_running:
+                    # 检查是否已有我们启动的进程还在运行（tasklist 可能检测不到刚启动的进程）
+                    if self._server_process is not None:
+                        try:
+                            poll_result = self._server_process.poll()
+                            if poll_result is None:
+                                # 进程仍在运行
+                                self._log(f"[服务器启动检查] 已有服务器进程正在启动中（PID: {self._server_process.pid}），等待就绪...")
+                                server_started_by_us = True
+                                server_pid = self._server_process.pid
+                                need_start = False
+                            else:
+                                self._log(f"[服务器启动检查] 之前的服务器进程已退出（返回码: {poll_result}）")
+                                self._server_process = None
+                        except Exception:
+                            self._server_process = None
+
+                    if need_start:
+                        # 查找 exe 路径
+                        exe_path = self._find_training_server_exe()
+                        self._log(f"[服务器启动检查] 查找可执行文件: {exe_path if exe_path else '未找到'}")
+
+                        if not exe_path:
+                            # 获取当前目录信息用于提示
+                            if getattr(sys, 'frozen', False):
+                                exe_dir = os.path.dirname(sys.executable)
+                                search_locations = f"程序所在目录: {exe_dir}"
+                            else:
+                                current_file = os.path.abspath(__file__)
+                                project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_file)))
+                                search_locations = f"项目根目录: {project_root}\n或 {project_root}\\training_client\\"
+
+                            QtWidgets.QMessageBox.critical(
+                                self,
+                                "错误",
+                                f"找不到 training_server.exe 文件！\n\n"
+                                f"已搜索以下位置:\n{search_locations}\n\n"
+                                f"请确保 training_server.exe 存在于上述位置之一。\n"
+                                f"如果文件不存在，请重新安装或从官方渠道获取该文件。"
+                            )
+                            self._is_starting_server = False
+                            return False
+
+                        # 启动服务器进程
+                        try:
+                            self._log(f"[服务器启动检查] 启动服务器进程: {exe_path}")
+                            self._server_process = subprocess.Popen(
+                                [exe_path],
+                                creationflags=subprocess.CREATE_NO_WINDOW
+                            )
+                            server_started_by_us = True
+                            server_pid = self._server_process.pid
+                            self._log(f"[服务器启动检查] 服务器进程已启动，PID: {server_pid}")
+                            
+                            # 等待短暂时间确保进程能被系统识别
+                            time.sleep(0.5)
+                            self._log(f"[服务器启动检查] 启动后进程检测: {self._is_training_server_running()}")
+                        except Exception as e:
+                            self._log(f"[服务器启动检查] 启动服务器进程失败: {str(e)}", "error")
+                            QtWidgets.QMessageBox.critical(
+                                self,
+                                "启动失败",
+                                f"无法启动训练服务器：{str(e)}"
+                            )
+                            self._is_starting_server = False
+                            return False
+            except Exception as e:
+                # 确保异常情况下也能重置标志
+                self._log(f"[服务器启动检查] 锁内操作异常: {str(e)}", "error")
+                self._is_starting_server = False
+                return False
+        # 锁在这里释放，后续的连接等待、事件循环等不需要在锁内
 
         # 创建进度对话框
         progress = QtWidgets.QProgressDialog(self)
         progress.setWindowTitle("启动服务器")
-        progress.setLabelText("启动训练服务器...  用时: 00:00")
+        if server_started_by_us:
+            progress.setLabelText("启动训练服务器...  用时: 00:00")
+        else:
+            progress.setLabelText("连接训练服务器...  用时: 00:00")
         progress.setRange(0, 0)  # 不确定进度（繁忙状态）
         progress.setCancelButtonText("取消")
         progress.setWindowModality(Qt.WindowModal)
@@ -862,10 +984,17 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
         # 用于跟踪状态的变量
         start_time = time.time()
         elapsed = 0
-        max_wait = 360  # 最长等待6分钟（训练服务器可能需要3-5分钟启动）
+        last_log_time = 0  # 上次输出日志的时间
+        max_wait = 600  # 最长等待5分钟（300秒）
         port_available = False  # 端口是否可用
         connection_established = False  # manager 是否真正连接成功
         user_cancelled = False
+
+        # 状态统计
+        port_check_count = 0  # 端口检测次数
+        port_check_success = 0  # 端口检测成功次数
+        manager_connect_attempts = 0  # manager 连接尝试次数
+        manager_connect_success = 0  # manager 连接成功次数（通过信号）
 
         # 创建事件循环用于阻塞等待
         loop = QtCore.QEventLoop(self)
@@ -874,15 +1003,29 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
         timer_label = QtCore.QTimer(self)
 
         def update_label():
-            nonlocal elapsed
+            nonlocal elapsed, last_log_time
             elapsed = int(time.time() - start_time)
             minutes = elapsed // 60
             seconds = elapsed % 60
 
             if not port_available:
-                progress.setLabelText(f"启动训练服务器...  用时: {minutes:02d}:{seconds:02d}")
+                if server_started_by_us:
+                    progress.setLabelText(f"启动训练服务器...  用时: {minutes:02d}:{seconds:02d}")
+                else:
+                    progress.setLabelText(f"等待服务器端口就绪...  用时: {minutes:02d}:{seconds:02d}")
             else:
                 progress.setLabelText(f"连接训练服务器...  用时: {minutes:02d}:{seconds:02d}")
+
+            # 每10秒输出一次详细日志
+            if elapsed - last_log_time >= 10:
+                last_log_time = elapsed
+                self._log(f"[服务器启动检查] 状态报告 (已运行 {minutes:02d}:{seconds:02d}):")
+                self._log(f"  - 进程状态: {'运行中' if self._is_training_server_running() else '未运行'}")
+                self._log(f"  - 端口状态: {'可用' if port_available else '检测中'}")
+                self._log(f"  - 端口检测: {port_check_count} 次尝试, {port_check_success} 次成功")
+                self._log(f"  - Manager连接: {manager_connect_attempts} 次尝试, {manager_connect_success} 次成功信号")
+                self._log(f"  - 当前manager状态: {'已连接' if self._manager and self._manager.is_connected() else '未连接'}")
+                self._log(f"  - 用户取消: {user_cancelled}")
 
             # 检查是否超时
             if elapsed >= max_wait:
@@ -900,22 +1043,33 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
         timer_socket = QtCore.QTimer(self)
 
         def try_detect_port():
-            nonlocal port_available
+            nonlocal port_available, port_check_count, port_check_success
             if port_available:
                 return  # 已经检测到端口，不再检测
+
+            port_check_count += 1
             try:
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 sock.settimeout(1)
                 result = sock.connect_ex((host, port))
                 sock.close()
+
                 if result == 0:
+                    port_check_success += 1
                     # 端口可用，停止端口检测，开始尝试 manager 连接
                     port_available = True
                     timer_socket.stop()
+                    self._log(f"[服务器启动检查] 端口检测成功 (第{port_check_count}次检测)")
+                    self._log(f"[服务器启动检查] 端口 {port} 已开放，开始尝试 manager 连接")
                     # 端口可用后开始尝试 manager 连接
                     try_manager_connect()
-            except Exception:
-                pass
+                else:
+                    # 端口未开放，记录日志（每5次检测记录一次）
+                    if port_check_count % 5 == 0:
+                        self._log(f"[服务器启动检查] 端口 {port} 仍未开放 (已检测{port_check_count}次)")
+            except Exception as e:
+                if port_check_count % 5 == 0:
+                    self._log(f"[服务器启动检查] 端口检测异常: {e} (已检测{port_check_count}次)")
 
         timer_socket.timeout.connect(try_detect_port)
         timer_socket.start(500)  # 每500ms检测一次
@@ -923,25 +1077,39 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
         # 创建定时器检查 manager 连接结果
         timer_check = QtCore.QTimer(self)
         connect_result = None  # None=等待中, True=成功, False=失败
-        manager_connect_attempts = 0
         max_manager_attempts = 10  # manager 最大重试次数
 
         # 临时信号处理函数
         def on_temp_connected(success):
-            nonlocal connect_result
+            nonlocal connect_result, manager_connect_success
             if not user_cancelled:
                 connect_result = success
+                if success:
+                    manager_connect_success += 1
+                    self._log(f"[服务器启动检查] 收到 connected 信号: success=True")
 
         def on_temp_error(msg):
             nonlocal connect_result
             if not user_cancelled:
                 connect_result = False
+                self._log(f"[服务器启动检查] 收到 connection_error 信号: {msg}")
 
         def check_connection_result():
             nonlocal connection_established, manager_connect_attempts, connect_result
             if connection_established:
                 return  # 已经连接成功
+
+            # 修复：优先检查 manager 实际连接状态，解决信号可能已发出但槽未执行的问题
+            if self._manager and self._manager.is_connected():
+                self._log(f"[服务器启动检查] 通过 is_connected() 检测到连接成功")
+                connection_established = True
+                timer_check.stop()
+                timer_label.stop()
+                loop.quit()
+                return
+
             if connect_result is True:
+                self._log(f"[服务器启动检查] 通过信号变量检测到连接成功")
                 connection_established = True
                 timer_check.stop()
                 timer_label.stop()
@@ -949,14 +1117,18 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
             elif connect_result is False:
                 # 连接失败，检查是否还有重试次数
                 manager_connect_attempts += 1
+                self._log(f"[服务器启动检查] Manager 连接失败 (第{manager_connect_attempts}/{max_manager_attempts}次尝试)")
+
                 if manager_connect_attempts >= max_manager_attempts:
                     # 超过最大重试次数
+                    self._log(f"[服务器启动检查] 超过最大重试次数 ({max_manager_attempts})，放弃连接")
                     timer_check.stop()
                     timer_label.stop()
                     loop.quit()
                 else:
                     # 重试
                     connect_result = None
+                    self._log(f"[服务器启动检查] 准备第{manager_connect_attempts + 1}次连接尝试...")
                     try_manager_connect()
 
         timer_check.timeout.connect(check_connection_result)
@@ -965,10 +1137,18 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
             """尝试使用 manager 连接服务器"""
             nonlocal connect_result
             if not self._manager:
+                self._log("[服务器启动检查] Manager 未初始化，无法连接")
                 connect_result = False
                 return
 
+            # 修复：先检查是否已经连接，避免重复连接
+            if self._manager.is_connected():
+                self._log("[服务器启动检查] Manager 已经连接，无需重复连接")
+                connect_result = True
+                return
+
             # 发起连接
+            self._log(f"[服务器启动检查] 发起 manager 连接: {host}:{port}")
             self._manager.connect_server(host, port)
 
             # 启动检查定时器（如果还没启动）
@@ -976,6 +1156,7 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
                 timer_check.start(500)  # 每500ms检查一次结果
 
         # 连接临时信号（只连接一次）
+        # 修复：确保信号连接在调用 connect_server 之前建立
         self._manager.connected.connect(on_temp_connected)
         self._manager.connection_error.connect(on_temp_error)
 
@@ -983,6 +1164,7 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
         def on_cancel():
             nonlocal user_cancelled
             user_cancelled = True
+            self._log("[服务器启动检查] 用户取消操作")
             timer_label.stop()
             timer_socket.stop()
             timer_check.stop()
@@ -990,11 +1172,32 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
 
         progress.canceled.connect(on_cancel)
 
+        # 在进入事件循环前，先尝试一次端口检测
+        # 如果服务器已经在运行且端口已就绪，可以立即开始连接
+        self._log("[服务器启动检查] 进入事件循环前进行首次端口检测...")
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(1)
+            result = sock.connect_ex((host, port))
+            sock.close()
+            if result == 0:
+                # 端口已可用，标记为可用并立即开始 manager 连接
+                port_available = True
+                port_check_success += 1
+                self._log(f"[服务器启动检查] 首次端口检测成功，端口 {port} 已开放")
+                try_manager_connect()
+            else:
+                self._log(f"[服务器启动检查] 首次端口检测失败，端口 {port} 未开放，等待服务器启动...")
+        except Exception as e:
+            self._log(f"[服务器启动检查] 首次端口检测异常: {e}")
+
         # 显示对话框并进入事件循环
+        self._log("[服务器启动检查] 进入事件循环等待服务器就绪...")
         progress.show()
         loop.exec_()
 
         # 清理
+        self._log("[服务器启动检查] 事件循环结束，开始清理...")
         try:
             progress.canceled.disconnect(on_cancel)
         except Exception:
@@ -1014,31 +1217,54 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
         progress.close()
 
         if user_cancelled:
+            self._log("[服务器启动检查] 用户取消，返回 False")
+            self._is_starting_server = False
             return False
+
+        # 修复：再次检查 manager 实际连接状态，因为信号可能在 cleanup 之后才发出
+        if not connection_established and self._manager and self._manager.is_connected():
+            self._log("[服务器启动检查] cleanup 后发现 manager 已连接")
+            connection_established = True
+
+        # 输出最终状态报告
+        elapsed_final = int(time.time() - start_time)
+        minutes_final = elapsed_final // 60
+        seconds_final = elapsed_final % 60
+        self._log(f"[服务器启动检查] 最终状态报告:")
+        self._log(f"  - 总耗时: {minutes_final:02d}:{seconds_final:02d}")
+        self._log(f"  - 端口检测: {port_check_count} 次")
+        self._log(f"  - Manager连接尝试: {manager_connect_attempts} 次")
+        self._log(f"  - 连接成功: {connection_established}")
+        self._log(f"  - 进程仍在运行: {self._is_training_server_running()}")
 
         if connection_established:
             self._log("训练服务器已启动并成功连接")
+            self._is_starting_server = False
             return True
 
+        self._log(f"[服务器启动检查] 服务器启动超时（{max_wait//60}分钟），请手动检查服务器状态")
         QtWidgets.QMessageBox.warning(
             self,
             "启动超时",
             f"训练服务器启动超时（{max_wait//60}分钟），请手动检查服务器状态。\n\n"
             f"注意：首次启动训练服务器可能需要3-5分钟下载依赖。"
         )
+        self._is_starting_server = False
         return False
 
     def _connect_with_retry(self, host, port):
         """
         带重试的连接方法，显示进度对话框
-        
+
         Args:
             host: 服务器地址
             port: 服务器端口
-            
+
         Returns:
             bool: 连接是否成功
         """
+        self._log(f"[连接重试] 开始连接: {host}:{port}")
+
         # 创建进度对话框
         progress = QtWidgets.QProgressDialog(self)
         progress.setWindowTitle("连接服务器")
@@ -1048,7 +1274,7 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
         progress.setWindowModality(Qt.WindowModal)
         progress.setFixedWidth(400)
         progress.setMinimumDuration(0)
-        
+
         # 蓝色进度条样式
         progress.setStyleSheet("""
             QProgressBar {
@@ -1062,40 +1288,43 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
                 border-radius: 3px;
             }
         """)
-        
+
         # 连接参数
         max_attempts = 3
         attempt_timeout = 5
-        
+
         # 状态变量
         attempt = 1
         connect_result = None  # None=等待中, True=成功, False=失败
         attempt_start_time = time.time()
+        last_log_time = 0  # 上次输出日志的时间
         user_cancelled = False
         finished = False  # 防止重复退出
-        
+
         loop = QtCore.QEventLoop(self)
-        
+
         # 临时信号处理
         def on_connected(success):
             nonlocal connect_result
             if not finished and not user_cancelled:
                 connect_result = success
-            
+                self._log(f"[连接重试] 收到 connected 信号: success={success}")
+
         def on_error(msg):
             nonlocal connect_result
             if not finished and not user_cancelled:
                 connect_result = False
-        
-        # 临时连接 manager 信号
+                self._log(f"[连接重试] 收到 connection_error 信号: {msg}")
+
+        # 修复：确保信号连接在调用 connect_server 之前建立
         self._manager.connected.connect(on_connected)
         self._manager.connection_error.connect(on_error)
-        
+
         # 定时器：更新标签
         timer_label = QtCore.QTimer(self)
-        
+
         def update_label():
-            nonlocal connect_result
+            nonlocal connect_result, last_log_time
             if finished or user_cancelled:
                 return
             elapsed = int(time.time() - attempt_start_time)
@@ -1104,23 +1333,45 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
             progress.setLabelText(
                 f"连接训练服务器...  第{attempt}次尝试  用时: {minutes:02d}:{seconds:02d}"
             )
+
+            # 每10秒输出一次详细日志
+            total_elapsed = int(time.time() - attempt_start_time + (attempt - 1) * attempt_timeout)
+            if total_elapsed - last_log_time >= 10:
+                last_log_time = total_elapsed
+                self._log(f"[连接重试] 状态报告 (第{attempt}次尝试, 已运行 {minutes:02d}:{seconds:02d}):")
+                self._log(f"  - connect_result: {connect_result}")
+                self._log(f"  - manager.is_connected(): {self._manager.is_connected() if self._manager else 'N/A'}")
+                self._log(f"  - user_cancelled: {user_cancelled}")
+                self._log(f"  - finished: {finished}")
+
             # 超时标记为失败，让 check_result 处理重试
             if elapsed >= attempt_timeout and connect_result is None:
+                self._log(f"[连接重试] 第{attempt}次尝试超时 ({attempt_timeout}秒)")
                 connect_result = False
-        
+
         timer_label.timeout.connect(update_label)
         timer_label.start(1000)
-        
+
         # 定时器：检查结果
         timer_check = QtCore.QTimer(self)
-        
+
         def check_result():
             nonlocal connect_result, attempt, attempt_start_time, finished
             if finished or user_cancelled:
                 return
-            
+
+            # 修复：优先检查 manager 实际连接状态，解决信号可能已发出但槽未执行的问题
+            if self._manager and self._manager.is_connected():
+                self._log(f"[连接重试] 通过 is_connected() 检测到连接成功")
+                finished = True
+                timer_label.stop()
+                timer_check.stop()
+                loop.quit()
+                return
+
             if connect_result is True:
                 # 连接成功
+                self._log(f"[连接重试] 通过信号变量检测到连接成功")
                 finished = True
                 timer_label.stop()
                 timer_check.stop()
@@ -1129,20 +1380,21 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
                 # 当前尝试失败
                 if attempt < max_attempts:
                     attempt += 1
+                    self._log(f"[连接重试] 第{attempt-1}次连接失败，开始第{attempt}次尝试...")
                     connect_result = None
                     attempt_start_time = time.time()
-                    self._log(f"第{attempt-1}次连接失败，尝试第{attempt}次...")
                     self._manager.connect_server(host, port)
                 else:
                     # 所有尝试都失败
+                    self._log(f"[连接重试] 所有 {max_attempts} 次尝试都失败")
                     finished = True
                     timer_label.stop()
                     timer_check.stop()
                     loop.quit()
-        
+
         timer_check.timeout.connect(check_result)
         timer_check.start(500)
-        
+
         # 取消按钮处理
         def on_cancel():
             nonlocal user_cancelled, finished
@@ -1150,25 +1402,27 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
                 return  # 已经完成了，忽略取消
             user_cancelled = True
             finished = True
+            self._log("[连接重试] 用户取消连接")
             timer_label.stop()
             timer_check.stop()
             loop.quit()
-        
+
         progress.canceled.connect(on_cancel)
-        
+
         # 发起第一次连接
+        self._log(f"[连接重试] 发起第1次连接...")
         self._manager.connect_server(host, port)
-        
+
         # 显示对话框并进入事件循环
         progress.show()
         loop.exec_()
-        
+
         # 先断开 canceled 信号，防止 close() 触发假取消
         try:
             progress.canceled.disconnect(on_cancel)
         except Exception:
             pass
-        
+
         # 断开临时 manager 信号连接
         try:
             self._manager.connected.disconnect(on_connected)
@@ -1178,18 +1432,32 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
             self._manager.connection_error.disconnect(on_error)
         except Exception:
             pass
-        
+
+        timer_label.stop()
+        timer_check.stop()
         progress.close()
-        
+
+        # 修复：再次检查 manager 实际连接状态，因为信号可能在 cleanup 之后才发出
+        if not finished and self._manager and self._manager.is_connected():
+            self._log("[连接重试] cleanup 后发现 manager 已连接")
+            finished = True
+
+        # 输出最终状态报告
+        self._log(f"[连接重试] 最终状态: finished={finished}, user_cancelled={user_cancelled}, connect_result={connect_result}")
+
         # 成功优先判断（即使 canceled 被意外触发，只要连接成功就返回 True）
+        if finished and self._manager and self._manager.is_connected():
+            self._log("已成功连接到训练服务器")
+            return True
+
         if connect_result is True:
             self._log("已成功连接到训练服务器")
             return True
-        
+
         if user_cancelled:
             self._log("用户取消连接", "warning")
             return False
-        
+
         self._log(f"连接失败，已尝试 {max_attempts} 次", "error")
         return False
 
@@ -1201,30 +1469,44 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
             if self._manager and self._manager.is_connected():
                 self.server_disconnect_requested.emit()
             else:
-                host, port = self.get_server_config()
+                # 禁用连接按钮防止重复点击
+                self.server_connect_btn.setEnabled(False)
+                self.server_connect_btn.setText("连接中...")
+                try:
+                    host, port = self.get_server_config()
 
-                # 确保服务器正在运行（此方法会在内部完成 manager 连接）
-                if not self._ensure_server_running(host, port):
-                    return
+                    # 确保服务器正在运行（此方法会在内部完成 manager 连接）
+                    if not self._ensure_server_running(host, port):
+                        return
 
-                # 检查 manager 是否已连接（_ensure_server_running 可能已完成连接）
-                if self._manager and self._manager.is_connected():
-                    # 已经连接成功，UI 更新由 manager.connected 信号自动触发
-                    self._log("已连接到训练服务器")
-                else:
-                    # 服务器已在运行，但需要建立 manager 连接
-                    if self._connect_with_retry(host, port):
-                        # 连接成功 - UI更新由 manager.connected 信号自动触发
-                        pass
+                    # 检查 manager 是否已连接（_ensure_server_running 可能已完成连接）
+                    if self._manager and self._manager.is_connected():
+                        # 已经连接成功，UI 更新由 manager.connected 信号自动触发
+                        self._log("已连接到训练服务器")
                     else:
-                        # 连接失败 - 检查 manager 实际状态，避免状态不一致
-                        if self._manager and self._manager.is_connected():
-                            # manager 实际已连接（可能信号已触发了UI更新），不要覆盖
+                        # 服务器已在运行，但需要建立 manager 连接
+                        if self._connect_with_retry(host, port):
+                            # 连接成功 - UI更新由 manager.connected 信号自动触发
                             pass
                         else:
-                            self.set_connection_status(False, "连接失败")
-                            self._log("连接训练服务器失败", "error")
+                            # 连接失败 - 检查 manager 实际状态，避免状态不一致
+                            if self._manager and self._manager.is_connected():
+                                # manager 实际已连接（可能信号已触发了UI更新），不要覆盖
+                                pass
+                            else:
+                                self.set_connection_status(False, "连接失败")
+                                self._log("连接训练服务器失败", "error")
+                finally:
+                    # 恢复按钮状态
+                    if not (self._manager and self._manager.is_connected()):
+                        self.server_connect_btn.setEnabled(True)
+                        self.server_connect_btn.setText("连接")
+                    else:
+                        self.server_connect_btn.setEnabled(True)
+                        self.server_connect_btn.setText("断开")
         except Exception as e:
+            self.server_connect_btn.setEnabled(True)
+            self.server_connect_btn.setText("连接")
             self._log(f"服务器连接异常：{str(e)}", "error")
 
     def _on_create_task_clicked(self):
@@ -1614,24 +1896,51 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
                 logger.error(f"回调函数执行异常：{e}")
 
         def _monitor_thread():
+            final_status = "unknown"
+            error_message = ""
             try:
                 client = self._manager._client
                 if client:
                     self._log(f"监控线程开始执行 monitor_training: {task_id[:8]}...")
                     client.monitor_training(task_id, poll_interval=2.0, callback=_on_progress_callback)
                     self._log(f"monitor_training 已返回：{task_id[:8]}...")
+
+                    # 监控结束后获取任务最终状态和错误信息
+                    try:
+                        status_data = client.get_task_status(task_id)
+                        if status_data:
+                            final_status = status_data.get("status", "unknown")
+                            # 获取错误信息（如果任务失败）
+                            if final_status == "failed":
+                                error_message = status_data.get("error", "")
+                                # 也尝试从 metrics 中获取错误信息
+                                if not error_message:
+                                    metrics = status_data.get("metrics", {})
+                                    if metrics:
+                                        error_message = metrics.get("error", "")
+                                # 如果仍然没有错误信息，使用默认信息
+                                if not error_message:
+                                    error_message = "训练过程中发生错误，请检查服务器日志"
+                            self._log(f"任务最终状态: {final_status}")
+                    except Exception as e:
+                        logger.warning(f"获取任务最终状态失败: {e}")
                 else:
                     self._log("训练客户端未初始化", "error")
+                    error_message = "训练客户端未初始化"
             except Exception as e:
                 self._log(f"监控训练异常：{str(e)}", "error")
+                error_message = str(e)
             finally:
+                # 将状态和错误信息传递给主线程
                 try:
                     QtCore.QMetaObject.invokeMethod(
-                        self, "_on_monitor_finished",
-                        QtCore.Qt.QueuedConnection
+                        self, "_on_monitor_finished_with_status",
+                        QtCore.Qt.QueuedConnection,
+                        QtCore.Q_ARG(str, final_status),
+                        QtCore.Q_ARG(str, error_message)
                     )
                 except Exception as e:
-                    logger.error(f"恢复按钮失败：{e}")
+                    logger.error(f"调用监控结束回调失败：{e}")
                     self._on_monitor_finished()
 
         thread = threading.Thread(target=_monitor_thread, daemon=True)
@@ -1705,9 +2014,15 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
         except Exception as e:
             logger.warning(f"更新监控进度失败: {e}")
 
-    @QtCore.pyqtSlot()
-    def _on_monitor_finished(self):
-        """监控结束回调"""
+    @QtCore.pyqtSlot(str, str)
+    def _on_monitor_finished_with_status(self, final_status, error_message):
+        """
+        监控结束回调（带状态信息）
+
+        Args:
+            final_status: 任务最终状态 (completed/failed/stopped/running/pending/unknown)
+            error_message: 错误信息（如果任务失败）
+        """
         self._is_monitoring = False
         self._monitor_target_task_id = None
 
@@ -1722,13 +2037,69 @@ class UnifiedTrainingWidget(QtWidgets.QWidget):
         self.monitor_btn.setEnabled(not should_hide_button)
         self.monitor_btn.setText("监控训练")
         self._log("监控训练结束")
-        
+
+        # 根据任务最终状态更新UI和显示消息
+        status_display = {
+            "completed": "已完成",
+            "failed": "已失败",
+            "stopped": "已停止",
+            "running": "运行中",
+            "pending": "等待中",
+            "unknown": "未知"
+        }
+
+        display_status = status_display.get(final_status, final_status)
+
+        if final_status == "completed":
+            self.training_status_label.setText(f"训练{display_status}")
+            self._log(f"任务 {self._current_task_id[:16]}... 训练{display_status}")
+        elif final_status == "failed":
+            self.training_status_label.setText(f"训练{display_status}")
+            self._log(f"任务 {self._current_task_id[:16]}... 训练{display_status}", "error")
+            # 显示详细的错误信息
+            if error_message:
+                self._log(f"错误详情: {error_message}", "error")
+                # 弹出错误对话框显示报错信息
+                QtWidgets.QMessageBox.critical(
+                    self,
+                    "训练失败",
+                    f"任务训练失败！\n\n任务ID: {self._current_task_id[:16]}...\n\n错误信息:\n{error_message}"
+                )
+            else:
+                QtWidgets.QMessageBox.critical(
+                    self,
+                    "训练失败",
+                    f"任务训练失败！\n\n任务ID: {self._current_task_id[:16]}...\n\n请检查服务器日志获取详细信息。"
+                )
+        elif final_status == "stopped":
+            self.training_status_label.setText(f"训练{display_status}")
+            self._log(f"任务 {self._current_task_id[:16]}... 训练{display_status}", "warning")
+        else:
+            self._log(f"任务 {self._current_task_id[:16]}... 最终状态: {display_status}")
+
+        # 更新内存中的任务状态
+        if self._current_task_id and self._current_task_id in self._tasks:
+            self._tasks[self._current_task_id]["status"] = final_status
+            if error_message:
+                self._tasks[self._current_task_id]["error"] = error_message
+
+        # 刷新任务列表以更新状态
+        if self._manager and self._manager.is_connected():
+            self._manager.list_tasks()
+
         # 清除训练历史
         self._training_history = {
             'epochs': [],
             'losses': [],
             'accuracies': []
         }
+
+
+    @QtCore.pyqtSlot()
+    def _on_monitor_finished(self):
+        """监控结束回调（旧版本，保持兼容性）"""
+        # 调用新版本，使用未知状态
+        self._on_monitor_finished_with_status("unknown", "")
 
     def _on_delete_clicked(self):
         """删除任务按钮点击 - 支持批量删除选中的任务"""

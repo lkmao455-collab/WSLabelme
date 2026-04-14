@@ -19,8 +19,11 @@ make setup
 
 ### Running the Application
 ```bash
-# Run labelme directly
+# Run labelme directly (standard entry point)
 python -m labelme
+
+# Run custom integrated UI wrapper (for local debugging)
+python main.py
 
 # Run with specific file
 python -m labelme path/to/image.jpg
@@ -40,6 +43,9 @@ uv run pytest -v tests/ -m gui
 
 # Run a single test file
 uv run pytest -v tests/labelme_tests/test_app.py
+
+# Run specific test scripts
+python test_training_curve_dock.py
 ```
 
 ### Code Quality
@@ -65,6 +71,9 @@ make check
 # Build the package
 make build
 # or: uv build
+
+# Build Windows executable bundle
+powershell -File build.ps1
 ```
 
 ## Architecture Overview
@@ -137,6 +146,7 @@ make build
 - `training_client.py`: Client for communicating with training server
 - TCP-based communication protocol for remote training management
 - Supports training task creation, monitoring, and result retrieval
+- Message protocol uses header (4 bytes) + length (4 bytes) + checksum (4 bytes) + JSON data
 
 ### AI Features
 
@@ -167,3 +177,19 @@ GUI tests are marked with `@pytest.mark.gui` and require a display.
 - Shape types are stored as strings in JSON; use constants when comparing
 - The `osam` module is optional; handle `ImportError` gracefully for AI features
 - Log files are stored in `~/.cache/labelme/labelme.log` (Unix) or `%LOCALAPPDATA%/labelme/labelme.log` (Windows)
+
+## Configuration Files Location
+
+App-local configuration files are stored alongside the application:
+- `.labelmerc`: Main configuration file
+- `.labelme_tcp_config.yaml`: TCP client configuration
+- `labelme_config.json`: Default images folder setting
+- `labelme.ini`: Window/layout state (delete to reset UI if docks behave oddly)
+
+## Coding Guidelines
+
+- All comments must be in Chinese (UTF-8 encoding)
+- Default runtime environment: Windows
+- Classes use `CamelCase`, functions and variables use `snake_case`
+- UI object names follow Qt Designer conventions (e.g., `layout_canvas`, `label_canvasPlaceholder`)
+- Commit messages are typically in Chinese (e.g., "优化模型训练", "修复菜单栏和工具栏显示异常问题")

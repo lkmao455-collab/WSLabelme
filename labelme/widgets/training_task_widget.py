@@ -136,7 +136,7 @@ class TrainingTaskWidget(QtWidgets.QWidget):
         btn_layout = QtWidgets.QHBoxLayout()
 
         self.refresh_btn = QtWidgets.QPushButton("刷新列表")
-        self.refresh_btn.setEnabled(False)
+        self.refresh_btn.setVisible(False)
 
         self.delete_btn = QtWidgets.QPushButton("删除任务")
         self.delete_btn.setEnabled(False)
@@ -283,6 +283,9 @@ class TrainingTaskWidget(QtWidgets.QWidget):
         self.start_btn.clicked.connect(self._on_start_clicked)
         self.stop_btn.clicked.connect(self._on_stop_clicked)
         self.clear_log_btn.clicked.connect(self._on_clear_log_clicked)
+
+        self.refresh_btn.setVisible(False)
+        
 
     def set_manager(self, manager):
         """
